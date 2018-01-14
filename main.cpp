@@ -4,23 +4,24 @@
 #include "GLRenderer.h"
 #include "Hand.h"
 #include "HandGenerator.h"
+//#include "pso.h"
+//#include "CostFunction.h"
 
-#define JOINT_COUNT 19
-int width = 640;
-int height = 480;
+#include <windows.h>
 
 void stopWatch()
 {
-	static double time = 0.0;
+	static DWORD start = 0.0;
+	static DWORD end = 0.0;
+	
 	static bool bCheckTime = false;
-	static int timerCount = 0;
+	
 	if (!bCheckTime) {
-		time = (double)cv::getTickCount();
-		timerCount++;
+		start = GetTickCount();
 	}
 	if (bCheckTime) {
-		time = ((double)cv::getTickCount() - time) / cv::getTickFrequency();
-		printf("                               Time:%d:%lfsec\n", timerCount, time);		//cout << "Time" << timerCount << ": " << time << " sec" << endl;
+		end = GetTickCount();
+		printf("       Time  : %lf \n", (end - start) / (double)1000);
 	}
 
 	bCheckTime = !bCheckTime;
@@ -29,42 +30,90 @@ void stopWatch()
 
 void main()
 {
-	cv::Mat glCalMat = cv::Mat(3, 3, CV_32FC1);
-	glCalMat.at<float>(0, 0) = 477.9;
-	glCalMat.at<float>(0, 1) = 0.0;
-	glCalMat.at<float>(0, 2) = 326.6;
-	glCalMat.at<float>(1, 0) = 0.0;
-	glCalMat.at<float>(1, 1) = 477.9;
-	glCalMat.at<float>(1, 2) = 245.9;
-	glCalMat.at<float>(2, 0) = 0.0;
-	glCalMat.at<float>(2, 1) = 0.0;
-	glCalMat.at<float>(2, 2) = 1.0;
+	//--user parameter--//
+	int width = 640;
+	int height = 480;
+	int width_tile = 128;
+	int height_tile = 128;
+	int particle_numW = 8;
+	int particle_numH = 4;
+	int particle_num = particle_numW*particle_numH;
+	int width_fb = width_tile * particle_numW;
+	int height_fb = height_tile * particle_numH;
 
+
+	int JOINT_COUNT = 19;
+	int max_generation = 20;
+
+	//--user parameter--//
+
+
+	//input camera setting
+	//model setting
+	//optimize 26 parameters.
+
+	GLRenderer glrenderer(width, height, width_tile, height_tile, width_fb, height_fb);
 	HandParameters hg(HandParameters::Default());
-	GLRenderer glrenderer(width, height, 1, 1, glCalMat);
-	Hand hand;
-	hand.Init(hg);
 	HandGenerator handgenerator(hg);
-
-
-	//for (int i = 0; i < JOINT_COUNT; i++) 
-	//	hand.SetJoint(i,0, 90, 90, 90);
-	//handgenerator.run();
-
-	hand.Render(hg.render_fbo_width, hg.render_fbo_height, 0, 0, 0, false, 10);
-	//glutSwapBuffers();
+	
+	//PSO pso(particle_numW,particle_numH,max_generation,hg)
 
 	
 	while (1){
-		cv::Mat model_img;
-		//glrenderer.getRGBfromCPU(model_img);
-		glrenderer.getDEPTHfromCPU(model_img);
-		cv::imshow("cpu", model_img);
-		cv::waitKey(1);
-	}
-	
 
-	//std::cout << "Press enter to exit";
-	//std::cin.ignore().get();
+		//camera input
+		{ 
+			float in[26] = {0};
+			in[2] = 20;
+			handgenerator.run(in,"color");
+		}
+
+		cv::Mat cam_img;
+		glrenderer.getOrigImage(cam_img, "color");
+		cv::imshow("cam", cam_img);
+		cv::waitKey(1);
+
+		//preprocessing
+		//not implemented yet..
+
+		//optimize by rendering a hand model.
+		//pso.run();
+
+		//handgenerator.run_gui();
+		
+		{
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			float in[26] = { 0 };
+			in[0] = 0; in[1] = 0; in[2] = 20;
+			handgenerator.runTile(0, 0, in,"color");
+
+			in[0] = 1; in[1] = 0; in[2] = 20;
+			in[3] = 90;
+			handgenerator.runTile(0, 1, in, "color");
+
+			in[0] = 0; in[1] = 1; in[2] = 20;
+			in[3] = 180;
+			handgenerator.runTile(1, 0, in, "color");
+
+			in[0] = 1; in[1] = 1; in[2] = 20;
+			in[3] = 270;
+			handgenerator.runTile(1, 1, in, "color");
+
+			cv::Mat model_color;
+			glrenderer.getColorTexture(model_color);
+			cv::imshow("model_color", model_color);
+			cv::Mat model_depth;
+			glrenderer.getDepthTexture(model_depth);
+			cv::imshow("model_depth", model_depth);
+
+			cv::waitKey(1);
+		}
+		
+		
+
 	
+		
+	}
+
+
 }

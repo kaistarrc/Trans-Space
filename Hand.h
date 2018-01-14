@@ -29,17 +29,22 @@ private:
 
 	// GL indexes for shading objects
 	GLuint shader_modelViewProj_loc; // location of the modelViewProj matrix uniform
+	GLuint shader_modelView_loc;
 	GLuint shader_texture_loc; // location of the texture uniform
 	GLuint shader_bones_loc[30]; // location of the bones uniform
 	GLuint shader_id; // id of the compiled shader
 	GLuint stf_fbo; // location of the FrameBufferObject containing all setup data
 	GLuint stf_pboIds[2]; // location of the two PixelBufferObjects
+	GLuint vismode_loc;
+	
 
 	// Some matrix variables to store spatial and geometric transformations
 	Matrix4f matrix_modelViewProj;
+	Matrix4f matrix_modelView;
 	Matrix4f matrix_model;
 	Matrix4f matrix_projection;
 	Matrix4f matrix_translation;
+	
 
 	float runningTime; // Time elapsed from last render call, used for animations timing
 
@@ -58,6 +63,8 @@ public:
 	**/
 	~Hand(void);
 
+	void initialRun();
+
 	/**
 	*	\brief Initialization function, MUST be called in order to setup the hand object
 	*	\param parameters Preferences specifing how the user will utilize the hand
@@ -75,7 +82,22 @@ public:
 	*	\param cont_rot Boolean indicating if the rotation is addictive (to previus rotation) or not
 	*	\param d Float specifing the distance of the center of the hand from the camera
 	**/
-	void Render(int w, int h, float r_x, float r_y, float r_z, bool cont_rot, float d);
+	void Render(float r_x, float r_y, float r_z, bool cont_rot, float wx,float wy,float wz,std::string);
+
+	void setViewport(int w, int h);
+	void setViewport(int px, int py, int w, int h);
+
+	/**
+	*	\brief Rendering of the hand ONCE with the current setup
+	*	\param w Integer specifing the width of the screen to render into
+	*	\param h Integer specifing the height of the screen to render into
+	*	\param r_x Float specifing the rotation on the x-axis
+	*	\param r_y Float specifing the rotation on the y-axis
+	*	\param r_z Float specifing the rotation on the z-axis
+	*	\param cont_rot Boolean indicating if the rotation is addictive (to previus rotation) or not
+	*	\param d Float specifing the distance of the center of the hand from the camera
+	**/
+
 
 	/**
 	*	\brief Sets the joint to the position
@@ -143,6 +165,9 @@ public:
 	*	\brief Saves the current hand properties (joint-positions)
 	**/
 	void SaveProperties();
+
+	
+	
 };
 
 #endif

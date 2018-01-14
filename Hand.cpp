@@ -619,7 +619,7 @@ void ComputeBoneAnimation(float TimeInSeconds, std::vector<Matrix4f>& Transforms
 	float TimeInTicks = TimeInSeconds * TicksPerSecond;
 	float AnimationTime = fmod(TimeInTicks, (float)input_scene->mAnimations[0]->mDuration);
 
-	ReadNodeHeirarchy(AnimationTime, input_scene->mRootNode, Identity);
+	ReadNodeHeirarchy(AnimationTime, input_scene->mRootNode, Identity); //time consuming
 
 	Transforms.resize(bone_count);
 
@@ -727,6 +727,18 @@ bool Hand::Init(HandParameters parameters)
 
 	// Reading input parameters
 	param = parameters;
+
+	//projection matrix
+	Matrix4f::PersProjInfo persProjInfo;
+	persProjInfo.Height = param.height;
+	persProjInfo.Width = param.width;
+	persProjInfo.zNear = param.render_near;
+	persProjInfo.zFar = param.render_far;
+	persProjInfo.fx = param.fx;
+	persProjInfo.fy = param.fy;
+	persProjInfo.cx = param.cx;
+	persProjInfo.cy = param.cy;
+	matrix_projection = Matrix4f::Set_GL_PROJECTION(persProjInfo);
 
 	// Enabling some OpenGL features needed
 	glEnable(GL_TEXTURE_2D);
@@ -836,12 +848,14 @@ bool Hand::Init(HandParameters parameters)
 
 	// Initializing uniforms locations
 	shader_modelViewProj_loc = glGetUniformLocation(shader_id, param.setup_shader_modelViewProjUniformName);
+	shader_modelView_loc = glGetUniformLocation(shader_id, param.setup_shader_modelViewUniformName);
 	shader_texture_loc = glGetUniformLocation(shader_id, param.setup_shader_textureUniformName);
 	for (int i = 0 ; i < sizeof(shader_bones_loc)/sizeof(shader_bones_loc[0]) ; i++) {
 		std::ostringstream oss;
 		oss << param.setup_shader_boneUniformName << '[' << i << ']';
 		shader_bones_loc[i] = glGetUniformLocation(shader_id, oss.str().c_str());
 	}
+	vismode_loc = glGetUniformLocation(shader_id, "vis_mode");
 	glUseProgram(shader_id);
 	glUniform1i(shader_texture_loc, 0);
 	glUseProgram(0);
@@ -854,11 +868,23 @@ bool Hand::Init(HandParameters parameters)
 	else
 		return LoadData(param.setup_model_path_low, param.setup_model_property_path, param.setup_modelTexture_path, param.general_use_rules, param.setup_model_rules_path);
 }
-void Hand::Render(int w, int h, float r_x, float r_y, float r_z, bool cont_rot, float d)
-{   
-	//std::cout << "Render1" << std::endl;
 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+void Hand::initialRun()
+{
+	
+}
+
+void Hand::setViewport(int w, int h){
+	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+}
+
+void Hand::setViewport(int px, int py, int w, int h){
+	glViewport(w*px, h*py, (GLsizei)w, (GLsizei)h);
+}
+
+void Hand::Render(float r_x, float r_y, float r_z, bool cont_rot, float wx,float wy,float wz,std::string vistype)
+{   
+	
 
 	glUseProgram(shader_id);
 	glEnable(GL_TEXTURE_2D);
@@ -875,31 +901,24 @@ void Hand::Render(int w, int h, float r_x, float r_y, float r_z, bool cont_rot, 
 	for (int i = 0 ; i < Transforms.size() ; i++) 
 		glUniformMatrix4fv(shader_bones_loc[i], 1, GL_TRUE, (const GLfloat*)Transforms[i]);
 
-	glViewport(0, 0, (GLsizei) w, (GLsizei) h);
 
-	
-	Matrix4f::PersProjInfo persProjInfo;
-	persProjInfo.Height = (float)h;
-	persProjInfo.Width = (float)w;
-	persProjInfo.zNear =  param.render_near;
-	persProjInfo.zFar = param.render_far;
-	persProjInfo.fx =  param.fx;
-	persProjInfo.fy = param.fy;
-	persProjInfo.cx = param.cx;
-	persProjInfo.cy = param.cy;
-	matrix_projection = Matrix4f::Set_GL_PROJECTION(persProjInfo);
-	
 	if (cont_rot)
 		matrix_model = matrix_model * Matrix4f::MakeRotationMatrix(r_x, r_y, 0.0f);
 	else
 		matrix_model = Matrix4f::MakeRotationMatrix(0.0f, 0.0f, -90.0f) * Matrix4f::MakeTranslationMatrix(0.0f, 0.0f, 0.0f) * Matrix4f::MakeRotationMatrix(r_x, r_y, r_z);
-	matrix_translation = Matrix4f::MakeTranslationMatrix(0.0f, 0.0f, -d);
+	matrix_translation = Matrix4f::MakeTranslationMatrix(wx, wy, -wz);
 	matrix_modelViewProj = matrix_projection * matrix_translation * matrix_model;
+	matrix_modelView = matrix_translation*matrix_model;
 	
+	if (vistype.compare("color")==0)
+		glUniform1i(vismode_loc, 0);
+	else
+		glUniform1i(vismode_loc, 1);
 
 
 	glUniformMatrix4fv(shader_modelViewProj_loc, 1, GL_FALSE, (const GLfloat*)matrix_modelViewProj);    
-
+	glUniformMatrix4fv(shader_modelView_loc, 1, GL_FALSE, (const GLfloat*)matrix_modelView);
+		
 	glBindVertexArray(ogl_id_general_vao);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, ogl_id_texture);
@@ -946,6 +965,8 @@ void Hand::SetJoint(int jn, int pc, float x, float y, float z)
 	//}
 	bone_data[BoneIndex].current_position = pc;
 	bone_to_render = BoneIndex;
+
+
 
 }
 void Hand::GetJoint(int jn, int pc, float &x, float &y, float &z)

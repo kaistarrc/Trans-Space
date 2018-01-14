@@ -1,6 +1,26 @@
 #ifndef __HANDPARAMETER_H__
 #define __HANDPARAMETER_H__
 
+const float boundary_max[2][26] = {
+	{ -100, -100, 20,
+	0, 0, 0 - 30,
+
+	-90, -90, -90, -90,  //-90: bend
+	-90, 7, -90, -90,
+	-90, 0, -90, -90,
+	-90, -7, -90, -90,
+	-90, -20, -90, -90 },
+
+	{ 100, 100, 400,
+	360, 360, 180 + 30,
+
+	0, 0, 0, 0,
+	0, 26, 0, 0,		//0: stretch
+	0, 8, 0, 0,
+	0, 0, 0, 0,
+	0, 0, 0, 0 }
+};
+
 struct HandParameters
 {
 	bool general_animation_on;
@@ -16,12 +36,17 @@ struct HandParameters
 	float fx;
 	float fy;
 	float render_animationSpeed;
-	int render_fbo_width;
-	int render_fbo_height;
+	int width_tile;
+	int height_tile;
+	int width;
+	int height;
+	int handParamNum;
+	//float boundary_max[2][26];
 
 	char* setup_vertexShaderPath;
 	char* setup_fragmentShaderPath;
 	char* setup_shader_modelViewProjUniformName;
+	char* setup_shader_modelViewUniformName;
 	char* setup_shader_textureUniformName;
 	char* setup_shader_boneUniformName;
 	char* setup_model_path_full;
@@ -30,13 +55,14 @@ struct HandParameters
 	char* setup_model_property_path;
 	char* setup_model_rules_path;
 	char* setup_output_folder_path;
+	
 
 	static HandParameters Default()
 	{
 		HandParameters hp;
 
-		hp.general_animation_on = true;
-		hp.general_use_rules = false;
+		hp.general_animation_on = true;// false;// true;
+		hp.general_use_rules = true;// false;
 
 		hp.render_use_full_model = false;
 		hp.render_bone_sight = false;// true;
@@ -48,15 +74,57 @@ struct HandParameters
 		hp.fx =  477.9;
 		hp.fy =  477.9;
 		hp.render_animationSpeed = 0.01f;
-		hp.render_fbo_width = 128;// 640;
-		hp.render_fbo_height = 128;// 480;
+		hp.width_tile = 128;
+		hp.height_tile = 128;
+		hp.width = 640;
+		hp.height = 480;
+		hp.handParamNum = 26;
 
-		//hp.setup_vertexShaderPath = "data/shader.vert";
-		//hp.setup_fragmentShaderPath = "data/shader.frag";
-		hp.setup_vertexShaderPath = "data/shader_depth.vert";
-		hp.setup_fragmentShaderPath = "data/shader_depth.frag";
+
+		/*
+		hp.boundary_max[0][0] = -100;	hp.boundary_max[1][0] = 100;
+		hp.boundary_max[0][1] = -100;	hp.boundary_max[1][1] = 100;
+		hp.boundary_max[0][2] = -100;	hp.boundary_max[1][2] = 400;
+		hp.boundary_max[0][3] = -180;	hp.boundary_max[1][3] = 180;
+		hp.boundary_max[0][4] = -180;	hp.boundary_max[1][4] = 180;
+		hp.boundary_max[0][5] = -180;	hp.boundary_max[1][5] = 180;
+
+		hp.boundary_max[0][6] = -90;	hp.boundary_max[1][6] = 90;
+		hp.boundary_max[0][7] = -90;	hp.boundary_max[1][7] = 90;
+		hp.boundary_max[0][8] = -90;	hp.boundary_max[1][8] = 90;
+		hp.boundary_max[0][9] = -90;	hp.boundary_max[1][9] = 90;
+
+		hp.boundary_max[0][10] = -90;	hp.boundary_max[1][10] = 90;
+		hp.boundary_max[0][11] = -90;	hp.boundary_max[1][11] = 90;
+		hp.boundary_max[0][12] = -90;	hp.boundary_max[1][12] = 90;
+		hp.boundary_max[0][13] = -90;	hp.boundary_max[1][13] = 90;
+
+		hp.boundary_max[0][14] = -90;	hp.boundary_max[1][14] = 90;
+		hp.boundary_max[0][15] = -90;	hp.boundary_max[1][15] = 90;
+		hp.boundary_max[0][16] = -90;	hp.boundary_max[1][16] = 90;
+		hp.boundary_max[0][17] = -90;	hp.boundary_max[1][17] = 90;
+
+		hp.boundary_max[0][18] = -90;	hp.boundary_max[1][18] = 90;
+		hp.boundary_max[0][19] = -90;	hp.boundary_max[1][19] = 90;
+		hp.boundary_max[0][20] = -90;	hp.boundary_max[1][20] = 90;
+		hp.boundary_max[0][21] = -90;	hp.boundary_max[1][21] = 90;
+
+		hp.boundary_max[0][22] = -90;	hp.boundary_max[1][22] = 90;
+		hp.boundary_max[0][23] = -90;	hp.boundary_max[1][23] = 90;
+		hp.boundary_max[0][24] = -90;	hp.boundary_max[1][24] = 90;
+		hp.boundary_max[0][25] = -90;	hp.boundary_max[1][25] = 90;
+		*/
+
+
+
+		
+		hp.setup_vertexShaderPath = "data/shader.vert";
+		hp.setup_fragmentShaderPath = "data/shader.frag";
+		//hp.setup_vertexShaderPath = "data/shader_depth.vert";
+		//hp.setup_fragmentShaderPath = "data/shader_depth.frag";
 
 		hp.setup_shader_modelViewProjUniformName = "model_view_proj_mat";
+		hp.setup_shader_modelViewUniformName = "model_view_mat";
 		hp.setup_shader_textureUniformName = "textureObject";
 		hp.setup_shader_boneUniformName = "bone_matrix";
 
@@ -84,14 +152,22 @@ struct HandParameters
 		dst->cy = cy;
 		dst->fx = fx;
 		dst->fy = fy;
-
 		dst->render_animationSpeed = render_animationSpeed;
-		dst->render_fbo_width = render_fbo_width;
-		dst->render_fbo_height = render_fbo_height;
+
+		dst->width_tile = width_tile;
+		dst->height_tile = height_tile;
+		dst->width = width;
+		dst->height = height;
+
+		//for (int i = 0; i < handParamNum; i++){
+		//	dst->boundary_max[0][i] = boundary_max[0][i];
+		//	dst->boundary_max[1][i] = boundary_max[1][i];
+		//}
 
 		dst->setup_vertexShaderPath = setup_vertexShaderPath;
 		dst->setup_fragmentShaderPath = setup_fragmentShaderPath;
 		dst->setup_shader_modelViewProjUniformName = setup_shader_modelViewProjUniformName;
+		dst->setup_shader_modelViewUniformName = setup_shader_modelViewUniformName;
 		dst->setup_shader_textureUniformName = setup_shader_textureUniformName;
 		dst->setup_shader_boneUniformName = setup_shader_boneUniformName;
 

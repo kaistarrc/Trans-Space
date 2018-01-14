@@ -49,7 +49,7 @@ class GLRenderer
 {
 public:
 	GLRenderer();
-	GLRenderer(int, int,int,int, cv::Mat);
+	GLRenderer(int, int,int,int,int,int);
 	
 
 	~GLRenderer();
@@ -67,10 +67,12 @@ public:
 
 	//void renderHand(float*, int);
 
-	void getRGBfromCPU(cv::Mat&);
-	void getDEPTHfromCPU(cv::Mat&);
-	void getLABELfromCPU(cv::Mat&);
+	void getOrigImage(cv::Mat&,std::string);
+	void getColorTexture(cv::Mat&);
+	void getDepthTexture(cv::Mat&);
+	void getLABELfromGL(cv::Mat&);
 
+	void setCameraParameter(float fx, float fy, float cx, float cy);
 
 
 	//void debugHandGL(float*);
@@ -81,13 +83,14 @@ public:
 	cudaArray* array1;
 	cudaArray* array2;
 	void mapCudaResource();
-
+	/*
 	void showObModel(const char*,const char*,cv::Mat,int,int,int);
 	void showObModel(const char*,const char*,cv::Mat, int, int);
 	void showModelDemo(const char*);
 	void showObModelDemo(const char* wname,cv::Mat);
 	void showObModelDemo(const char* wname, const char* text, cv::Mat oimg_in);
 	void showDifferenceObModel(cv::Mat);
+	*/
 //private:
 	
 	int initGL();
@@ -114,7 +117,7 @@ public:
 
 
 
-	void Set_GL_PROJECTION(double fx, double fy, double cx, double cy, int xdim, int ydim, double zmin, double zmax, float * gl_vector);
+	//void Set_GL_PROJECTION(double fx, double fy, double cx, double cy, int xdim, int ydim, double zmin, double zmax, float * gl_vector);
 
 
 	//
@@ -123,7 +126,7 @@ public:
 	int width_orig;
 	int height_orig;
 
-	cv::Mat calibMat;
+	//cv::Mat calibMat;
 
 	int width_fb;
 	int height_fb;
