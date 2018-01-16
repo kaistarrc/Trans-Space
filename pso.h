@@ -197,7 +197,14 @@ public:
 
 		//visualize final solution
 		showDemo(cam_color);
-		
+		/*
+		float* solp = &position.at<float>(0, 0);
+		_renderer.run(solp, "depth");
+		cv::Mat model_depth;
+		_glrenderer.getOrigImage(model_depth, "depth");
+		cv::imshow("model",model_depth);
+		cv::waitKey(1);
+		*/
 	}
 
 private:

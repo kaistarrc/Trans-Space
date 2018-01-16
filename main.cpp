@@ -1,11 +1,15 @@
 #include <iostream>
 
+
+#include "Camera.h"
+
 #include "HandParameter.h"
 #include "GLRenderer.h"
 #include "Hand.h"
 #include "HandGenerator.h"
 #include "pso.h"
 #include "CostFunction.h"
+#include "Preprocessing.h"
 
 #include <windows.h>
 
@@ -30,7 +34,9 @@ void stopWatch()
 
 void main()
 {
-	//--user parameter--//
+	
+	//----------user parameter----------//
+
 	int width = 640;
 	int height = 480;
 	int width_tile = 128;
@@ -51,65 +57,71 @@ void main()
 	hp.particle_numx = particle_numx; hp.particle_numy = particle_numy;
 	hp.handParamNum = handParamNum;
 
-	//--user parameter--//
+	//----------user parameter----------//
 
-
-	//input camera setting
-	//model setting
-	//optimize 26 parameters.
+	
+	//----------init class----------//
 
 	GLRenderer glrenderer(width, height, width_tile, height_tile, width_fb, height_fb);
-	//HandParameters hg(HandParameters::Default());
-	HandParameters hg(hp);
-	HandGenerator handgenerator(hg);
-	
-
+	HandGenerator handgenerator(hp);
 	CostFunction costFunction(particle_numx, particle_numy, handParamNum,glrenderer);
 	PSO pso(particle_numx, particle_numy, max_generation,handParamNum,handgenerator,glrenderer,costFunction);
 	
+	//"realcamera", "playcamera", "glcamera",
+	Camera camera(width, height, &handgenerator, &glrenderer, "playcamera");
+	Preprocessing preproc(width, height,camera);
+	
+	//----------init class----------//
 
-	float in[26] = { 0, 0, 10,
+
+	//debug
+	float in[26] = { 0, 0, 300,
 		0, 0, 10,
 		-10, -20, -20, -20,
 		-60, 15, -20, -20,
 		-50, 4, -20, -20,
 		-40, -3, -20, -20,
 		-30, -10, -20, -20 };
-
-	//debug
 	pso.setGbestPre(in);
 	//debug
 
+	//key
+	int recordbool = false;
+
 	while (1){
+		if (camera.queryFrames() == false)
+			continue;
 
-		//camera input		
-		handgenerator.run(in,"depth");
+		//--camera input--//
 		cv::Mat cam_depth;
-		glrenderer.getOrigImage(cam_depth, "depth");
-
-		handgenerator.run(in, "color");
-		cv::Mat cam_color;
-		glrenderer.getOrigImage(cam_color, "color");
-		
-		//cv::imshow("cam_color", cam_color);
+		camera.getDepthBuffer(cam_depth);
 		//cv::imshow("cam_depth", cam_depth);
 
-		//debugging
+		cv::Mat cam_color;
+		camera.getMappedColorBuffer(cam_color);
+		//cv::imshow("cam_color", cam_color);
 		
-		//debugging
+		/*
+		if (recordbool == true)
+			camera.recordFrames();
+		char key = cv::waitKey(10);
+		if (key == 'a')
+			recordbool = true;
+		*/
+
+		//--preprocessing--//
+		preproc.segmentHandFromBand(cam_color, cam_depth);
+		cv::imshow("seg_depth", cam_depth);
+		
+		
+		//--optimize--//
+		pso.run(cam_color, cam_depth, "6D"); 
+		//pso.run(cam_color, cam_depth, "26D");
 
 		
-		//preprocessing
-		//not implemented yet..
-
-		//optimize by rendering a hand model.
-		stopWatch();
-		//pso.run(cam_color, cam_depth, "6D"); 
-		pso.run(cam_color, cam_depth, "26D");
-		stopWatch();
 		
-		
-
+		camera.releaseFrames();
+		cv::waitKey(1);
 		cv::waitKey(1);
 
 		//handgenerator.run_gui();
