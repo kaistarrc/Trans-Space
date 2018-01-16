@@ -879,7 +879,9 @@ void Hand::setViewport(int w, int h){
 }
 
 void Hand::setViewport(int px, int py, int w, int h){
-	glViewport(w*px, h*py, (GLsizei)w, (GLsizei)h);
+	//glViewport(w*px, h*py, (GLsizei)w, (GLsizei)h);
+	glViewport(w*px, h*(param.particle_numy - py - 1), w, h);
+
 }
 
 void Hand::Render(float r_x, float r_y, float r_z, bool cont_rot, float wx,float wy,float wz,std::string vistype)
@@ -905,7 +907,7 @@ void Hand::Render(float r_x, float r_y, float r_z, bool cont_rot, float wx,float
 	if (cont_rot)
 		matrix_model = matrix_model * Matrix4f::MakeRotationMatrix(r_x, r_y, 0.0f);
 	else
-		matrix_model = Matrix4f::MakeRotationMatrix(0.0f, 0.0f, -90.0f) * Matrix4f::MakeTranslationMatrix(0.0f, 0.0f, 0.0f) * Matrix4f::MakeRotationMatrix(r_x, r_y, r_z);
+		matrix_model = Matrix4f::MakeRotationMatrix(0.0f, 0.0f, -90.0f) * Matrix4f::MakeTranslationMatrix(0.0f, 0.0f, 0.0f) * Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(2.0,2.0,2.0);
 	matrix_translation = Matrix4f::MakeTranslationMatrix(wx, wy, -wz);
 	matrix_modelViewProj = matrix_projection * matrix_translation * matrix_model;
 	matrix_modelView = matrix_translation*matrix_model;

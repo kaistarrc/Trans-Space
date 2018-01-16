@@ -75,13 +75,13 @@ extern "C" void kernel_unbind_CUDA()
 	cudaUnbindTexture(extra_tex);
 }
 
-extern "C" void initCudaMem(int w,int h,int p_numx,int p_numy,int b_numx,int b_numy)
+extern "C" void initCudaMem(int w, int h, int p_numx, int p_numy, int b_numx, int b_numy)
 {
 	width = w;	height = h;
 	particle_numx = p_numx;	particle_numy = p_numy;
 	block_numx = b_numx;	block_numy = b_numy;
-	
-	
+
+
 	cudaMalloc(&img_dif_cu, sizeof(float)*w*p_numx*h*p_numy);
 	cudaMalloc(&img_and_cu, sizeof(float)*w*p_numx*h*p_numy);
 	cudaMalloc(&img_or_cu, sizeof(float)*w*p_numx*h*p_numy);
@@ -93,7 +93,7 @@ extern "C" void initCudaMem(int w,int h,int p_numx,int p_numy,int b_numx,int b_n
 	cudaMalloc(&cost_dif_cu, sizeof(float)*particle_numx*particle_numy);
 	cudaMalloc(&cost_and_cu, sizeof(float)*particle_numx*particle_numy);
 	cudaMalloc(&cost_or_cu, sizeof(float)*particle_numx*particle_numy);
-	
+
 }
 
 extern "C" void releaseCudaMem()
@@ -102,21 +102,21 @@ extern "C" void releaseCudaMem()
 
 }
 
-extern "C" void getReduceResult(float* cost_dif_reduce,float* cost_and_reduce,float* cost_or_reduce)
+extern "C" void getReduceResult(float* cost_dif_reduce, float* cost_and_reduce, float* cost_or_reduce)
 {
 	cudaMemcpy(cost_dif_reduce, cost_dif_reduce_cu, sizeof(float)* 4 * particle_numx * 4 * particle_numy, cudaMemcpyDeviceToHost);
 	cudaMemcpy(cost_and_reduce, cost_and_reduce_cu, sizeof(float)* 4 * particle_numx * 4 * particle_numy, cudaMemcpyDeviceToHost);
 	cudaMemcpy(cost_or_reduce, cost_or_reduce_cu, sizeof(float)* 4 * particle_numx * 4 * particle_numy, cudaMemcpyDeviceToHost);
 
 }
-extern "C" void getCostFromGPU(cv::Mat& cost_dif,cv::Mat& cost_and,cv::Mat& cost_or)
+extern "C" void getCostFromGPU(cv::Mat& cost_dif, cv::Mat& cost_and, cv::Mat& cost_or)
 {
 	cudaMemcpy(cost_dif.data, cost_dif_cu, sizeof(float)*particle_numx*particle_numy, cudaMemcpyDeviceToHost);
 	cudaMemcpy(cost_and.data, cost_and_cu, sizeof(float)*particle_numx*particle_numy, cudaMemcpyDeviceToHost);
 	cudaMemcpy(cost_or.data, cost_or_cu, sizeof(float)*particle_numx*particle_numy, cudaMemcpyDeviceToHost);
 
 }
-extern "C" void getDifferenceImageFromGPU(cv::Mat& dif,cv::Mat& and,cv::Mat& or)
+extern "C" void getDifferenceImageFromGPU(cv::Mat& dif, cv::Mat& and, cv::Mat& or)
 {
 	int s = width*particle_numx*height*particle_numy;
 
@@ -126,7 +126,7 @@ extern "C" void getDifferenceImageFromGPU(cv::Mat& dif,cv::Mat& and,cv::Mat& or)
 
 }
 
-__global__ void differentiate(float* o, float* dif,float* and,float* or, int _w, int _h, int _pnumx, int _pnumy,float dif_max)
+__global__ void differentiate(float* o, float* dif, float* and, float* or, int _w, int _h, int _pnumx, int _pnumy, float dif_max)
 {
 	unsigned int width_full = _w*_pnumx;  //width*particle_numx;
 	unsigned int height_full = _h*_pnumy; //height*particle_numy;
@@ -148,58 +148,58 @@ __global__ void differentiate(float* o, float* dif,float* and,float* or, int _w,
 	//working
 	/*
 	if (o[v*width_full + u] == 0)
-		dif[v*width_full + u] = 0;
+	dif[v*width_full + u] = 0;
 	else
 	{
-		dif[v*width_full + u] = abs(o[v*width_full + u] - tex2D(extra_tex, u, height_full - v-1).z);
-		if (dif[v*width_full + u] > 100)
-			dif[v*width_full + u] = 100;
+	dif[v*width_full + u] = abs(o[v*width_full + u] - tex2D(extra_tex, u, height_full - v-1).z);
+	if (dif[v*width_full + u] > 100)
+	dif[v*width_full + u] = 100;
 	}
 	*/
-	
+
 	//modified ( working in PSO ) 
 	/*
 	and[v*width_full + u] = 0;	or[v*width_full + u] = 0;	dif[v*width_full + u] = 0;
 
 	if (o[v*width_full + u] > 0){
-		dif[v*width_full + u] = abs(o[v*width_full + u] - tex2D(extra_tex, u, height_full - v - 1).z);
+	dif[v*width_full + u] = abs(o[v*width_full + u] - tex2D(extra_tex, u, height_full - v - 1).z);
 
-		if (dif[v*width_full + u] > dif_max)
-			dif[v*width_full + u] = dif_max;
+	if (dif[v*width_full + u] > dif_max)
+	dif[v*width_full + u] = dif_max;
 	}
 
 	if (o[v*width_full + u] > 0 && tex2D(extra_tex, u, height_full - v - 1).z > 0)
 	{
-		if (dif[v*width_full + u] < dif_max)
-			and[v*width_full + u] = 1;
+	if (dif[v*width_full + u] < dif_max)
+	and[v*width_full + u] = 1;
 	}
 
 	if (o[v*width_full + u] > 0 || tex2D(extra_tex, u, height_full - v - 1).z > 0)
-		or[v*width_full + u] = 1;
+	or[v*width_full + u] = 1;
 	*/
 
 	//modifying (in HMF)
 
 	and[v*width_full + u] = 0;	or[v*width_full + u] = 0;	dif[v*width_full + u] = 0;
-	
+
 	if (o[v*width_full + u] > 0 && tex2D(extra_tex, u, height_full - v - 1).z > 0){
-	
+
 
 		dif[v*width_full + u] = abs(o[v*width_full + u] - tex2D(extra_tex, u, height_full - v - 1).z);
 		if (dif[v*width_full + u] > dif_max)
 			dif[v*width_full + u] = dif_max;
 
 		//if (dif[v*width_full + u] <dif_max)  // cost may be bigger than 1 due to this.
-			and[v*width_full + u] = 1;
+		and[v*width_full + u] = 1;
 	}
 
 	if (o[v*width_full + u] > 0 || tex2D(extra_tex, u, height_full - v - 1).z > 0)
 		or[v*width_full + u] = 1;
-	
-	
+
+
 }
 
-__global__ void sum_and_reduce(float* g_diff, float* g_odata,int _w,int _h,int _pnumx,int _pnumy)
+__global__ void sum_and_reduce(float* g_diff, float* g_odata, int _w, int _h, int _pnumx, int _pnumy)
 {
 	extern __shared__ float sData[];
 
@@ -213,8 +213,8 @@ __global__ void sum_and_reduce(float* g_diff, float* g_odata,int _w,int _h,int _
 	unsigned int bh = blockDim.y;//=32
 
 	//index of a particle
-	unsigned int px = blockIdx.z % _pnumx; 
-	unsigned int py = blockIdx.z / _pnumx; 
+	unsigned int px = blockIdx.z % _pnumx;
+	unsigned int py = blockIdx.z / _pnumx;
 
 	//global index in whole images.
 	unsigned int u = px*_w + (bw*blockIdx.x) + tx;
@@ -278,33 +278,33 @@ __global__ void sum_and_reduce2(float *g_idata, float *g_odata) {
 		__syncthreads();
 	}
 	// write result for this block to global mem
-	if (tid == 0) g_odata[bid] =  sData[0];
-	
+	if (tid == 0) g_odata[bid] = sData[0];
+
 }
 
 
-extern "C" void calculatecost_cu(float* img_ob_cu,float dif_max)//, float* img_dif_cu)//,float* cost_cu)//,int g)
+extern "C" void calculatecost_cu(float* img_ob_cu, float dif_max)//, float* img_dif_cu)//,float* cost_cu)//,int g)
 {
-	dim3 block(width/block_numx, height/block_numy);  //=(32,32)
-	dim3 grid(block_numx,block_numy, particle_numx*particle_numy);   //=(4,4,particle_num)
+	dim3 block(width / block_numx, height / block_numy);  //=(32,32)
+	dim3 grid(block_numx, block_numy, particle_numx*particle_numy);   //=(4,4,particle_num)
 
 	// difference map	
-	differentiate << <grid, block >> > (img_ob_cu, img_dif_cu,img_and_cu,img_or_cu,width,height,particle_numx,particle_numy,dif_max);
+	differentiate << <grid, block >> > (img_ob_cu, img_dif_cu, img_and_cu, img_or_cu, width, height, particle_numx, particle_numy, dif_max);
 	cudaThreadSynchronize();
 
 	// reduce
 	int sbytes1 = block.x*block.y*sizeof(float);
-	sum_and_reduce << <grid, block, sbytes1 >> > (img_dif_cu, cost_dif_reduce_cu,width,height,particle_numx,particle_numy);
+	sum_and_reduce << <grid, block, sbytes1 >> > (img_dif_cu, cost_dif_reduce_cu, width, height, particle_numx, particle_numy);
 	//cudaThreadSynchronize();
-	
+
 	sum_and_reduce << <grid, block, sbytes1 >> > (img_and_cu, cost_and_reduce_cu, width, height, particle_numx, particle_numy);
 	//cudaThreadSynchronize();
 
 	sum_and_reduce << <grid, block, sbytes1 >> > (img_or_cu, cost_or_reduce_cu, width, height, particle_numx, particle_numy);
 	cudaThreadSynchronize();
-	
-	
-	dim3 block2(block_numx,block_numy);  //=(4,4)
+
+
+	dim3 block2(block_numx, block_numy);  //=(4,4)
 	dim3 grid2(particle_numx, particle_numy, 1);   //=(4,4,particle_num)
 
 	int sbytes2 = block2.x*block2.y*sizeof(float);
@@ -336,8 +336,10 @@ __global__ void get_texture_depth(float* dstBuffer, int _w, int _h, int _pnumx, 
 	unsigned int u = px*_w + (bw*blockIdx.x) + tx;
 	unsigned int v = py*_h + (bh*blockIdx.y) + ty;
 
-	dstBuffer[v*_w*_pnumx + u] = tex2D(extra_tex, u, height_full - v - 1).z;
+	dstBuffer[v*_w*_pnumx + u] = tex2D(extra_tex, u, height_full-v-1).z;
 
+	//if (u >= 128 & v >= 128)
+	//	dstBuffer[v*_w*_pnumx + u] = 0;
 }
 
 

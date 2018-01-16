@@ -2,7 +2,7 @@
 #define __HANDPARAMETER_H__
 
 const float boundary_max[2][26] = {
-	{ -100, -100, 20,
+	{ -100, -100, 0,
 	0, 0, 0 - 30,
 
 	-90, -90, -90, -90,  //-90: bend
@@ -40,6 +40,8 @@ struct HandParameters
 	int height_tile;
 	int width;
 	int height;
+	int particle_numx;
+	int particle_numy;
 	int handParamNum;
 	//float boundary_max[2][26];
 
@@ -78,6 +80,8 @@ struct HandParameters
 		hp.height_tile = 128;
 		hp.width = 640;
 		hp.height = 480;
+		hp.particle_numx = 8;
+		hp.particle_numy = 4;
 		hp.handParamNum = 26;
 
 
@@ -158,6 +162,8 @@ struct HandParameters
 		dst->height_tile = height_tile;
 		dst->width = width;
 		dst->height = height;
+		dst->particle_numx = particle_numx;
+		dst->particle_numy = particle_numy;
 
 		//for (int i = 0; i < handParamNum; i++){
 		//	dst->boundary_max[0][i] = boundary_max[0][i];

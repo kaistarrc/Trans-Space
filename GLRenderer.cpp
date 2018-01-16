@@ -234,7 +234,9 @@ void GLRenderer::getDepthTexture(cv::Mat& out)
 		depth.at<float>(j, i) = img1.at<float>(j, 4 * i + 2);
 	}
 
-	out = depth;
+	//out = depth;
+	depth.copyTo(out);
+	cv::waitKey(1);
 }
 
 

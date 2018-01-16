@@ -83,14 +83,7 @@ public:
 	cudaArray* array1;
 	cudaArray* array2;
 	void mapCudaResource();
-	/*
-	void showObModel(const char*,const char*,cv::Mat,int,int,int);
-	void showObModel(const char*,const char*,cv::Mat, int, int);
-	void showModelDemo(const char*);
-	void showObModelDemo(const char* wname,cv::Mat);
-	void showObModelDemo(const char* wname, const char* text, cv::Mat oimg_in);
-	void showDifferenceObModel(cv::Mat);
-	*/
+	
 //private:
 	
 	int initGL();

@@ -74,6 +74,10 @@ class HandGenerator{
 public:
 	Trackbar _trackbar;
 
+	HandGenerator(){
+
+	}
+
 	HandGenerator(HandParameters hg){
 
 		handParamNum = hg.handParamNum;
@@ -184,8 +188,10 @@ public:
 		if (px==0 && py==0) //clear only when drawing first particle.
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
+		//printf("tile %.2f %.2f %.2f\n", in[0], in[1], in[2]);
 		setPose(in);
 		hand.setViewport(px, py, 128, 128);
+
 		hand.Render(in[3], in[4],in[5], false,in[0],in[1],in[2],vistype);
 	}
 
