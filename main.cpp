@@ -35,8 +35,7 @@ void stopWatch()
 void main()
 {
 	
-	//----------user parameter----------//
-
+#pragma region user parameter setting
 	int width = 640;
 	int height = 480;
 	int width_tile = 128;
@@ -49,39 +48,39 @@ void main()
 	int handParamNum = 26;
 
 	int JOINT_COUNT = 19;
-	int max_generation = 20;
+	int max_generation = 30;
 
 	HandParameters hp = HandParameters::Default();
 	hp.width = width; hp.height = height;
 	hp.width_tile = width_tile; hp.height_tile = height_tile;
 	hp.particle_numx = particle_numx; hp.particle_numy = particle_numy;
 	hp.handParamNum = handParamNum;
+#pragma endregion
 
-	//----------user parameter----------//
 
+#pragma region init class	
 	
-	//----------init class----------//
-
 	GLRenderer glrenderer(width, height, width_tile, height_tile, width_fb, height_fb);
 	HandGenerator handgenerator(hp);
 	CostFunction costFunction(particle_numx, particle_numy, handParamNum,glrenderer);
-	PSO pso(particle_numx, particle_numy, max_generation,handParamNum,handgenerator,glrenderer,costFunction);
+	PSO pso(particle_numx, particle_numy, max_generation,handParamNum,&handgenerator,glrenderer,costFunction);
 	
 	//"realcamera", "playcamera", "glcamera",
 	Camera camera(width, height, &handgenerator, &glrenderer, "playcamera");
 	Preprocessing preproc(width, height,camera);
-	
-	//----------init class----------//
+
+#pragma endregion
+
 
 
 	//debug
 	float in[26] = { 0, 0, 300,
-		0, 0, 10,
-		-10, -20, -20, -20,
-		-60, 15, -20, -20,
-		-50, 4, -20, -20,
-		-40, -3, -20, -20,
-		-30, -10, -20, -20 };
+		0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0,
+		0, 0, 0, 0 };
 	pso.setGbestPre(in);
 	//debug
 
@@ -92,7 +91,8 @@ void main()
 		if (camera.queryFrames() == false)
 			continue;
 
-		//--camera input--//
+#pragma region camera input
+
 		cv::Mat cam_depth;
 		camera.getDepthBuffer(cam_depth);
 		//cv::imshow("cam_depth", cam_depth);
@@ -100,64 +100,88 @@ void main()
 		cv::Mat cam_color;
 		camera.getMappedColorBuffer(cam_color);
 		//cv::imshow("cam_color", cam_color);
-		
+
+#pragma endregion 
+
+#pragma region record frames
 		/*
 		if (recordbool == true)
 			camera.recordFrames();
 		char key = cv::waitKey(10);
-		if (key == 'a')
+		if (key == 'r'){
+			printf("record start\n");
 			recordbool = true;
+		}
 		*/
+#pragma endregion
+		
 
+#pragma region preprocessing
 		//--preprocessing--//
 		preproc.segmentHandFromBand(cam_color, cam_depth);
 		cv::imshow("seg_depth", cam_depth);
+		cvMoveWindow("seg_depth", 1000, 600);
 		
+#pragma endregion
+	
+#pragma region optimize 
 		
 		//--optimize--//
-		pso.run(cam_color, cam_depth, "6D"); 
-		//pso.run(cam_color, cam_depth, "26D");
+		//pso.run(cam_color, cam_depth, "6D"); 
+		pso.run(cam_color, cam_depth, "26D");
 
-		
-		
-		camera.releaseFrames();
-		cv::waitKey(1);
-		cv::waitKey(1);
 
-		//handgenerator.run_gui();
-		/*
+#pragma endregion
+
+#pragma region gui test
+		//set track bar from pso result
+		float* solp = &pso.gbest.at<float>(0, 0);
+		handgenerator.run_setTbarFromResult(solp);
+
+		//run gui
+		handgenerator.run_gui();
+
+		cv::Mat model_color;
+		glrenderer.getOrigImage(model_color, "color");
+		//cv::flip(model_color, model_color, 1);
+		cv::imshow("manual", model_color);
+		cvMoveWindow("manual", 1000, 0);
+
+		//add	
+		cv::Mat fimg;
+		cv::addWeighted(cam_color, 0.3, model_color, 0.9, 0, fimg);
+		cv::imshow("manual2", fimg);
+		cvMoveWindow("manual2", 1000, 500);
+		cv::waitKey(1);
+		
 		{
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-			float in[26] = { 0 };
-			in[0] = 0; in[1] = 0; in[2] = 20;
-			handgenerator.runTile(0, 0, in,"color");
+			//printf("Trackbar\n");
+			float tx = handgenerator._trackbar.wval[0];
+			float ty = handgenerator._trackbar.wval[1];
+			float tz = handgenerator._trackbar.wval[2];
+			float rx = handgenerator._trackbar.wval[3];
+			float ry = handgenerator._trackbar.wval[4];
+			float rz = handgenerator._trackbar.wval[5];
 
-			in[0] = 1; in[1] = 0; in[2] = 20;
-			in[3] = 90;
-			handgenerator.runTile(0, 1, in, "color");
+			int joint_index = handgenerator._trackbar.fid;
+			float fx = handgenerator._trackbar.fval[0];
+			float fy = handgenerator._trackbar.fval[1];
+			float fz = handgenerator._trackbar.fval[2];
 
-			in[0] = 0; in[1] = 1; in[2] = 20;
-			in[3] = 180;
-			handgenerator.runTile(1, 0, in, "color");
-
-			in[0] = 1; in[1] = 1; in[2] = 20;
-			in[3] = 270;
-			handgenerator.runTile(1, 1, in, "color");
-
-			cv::Mat model_color;
-			glrenderer.getColorTexture(model_color);
-			cv::imshow("model_color", model_color);
-			cv::Mat model_depth;
-			glrenderer.getDepthTexture(model_depth);
-			cv::imshow("model_depth", model_depth);
-
-			cv::waitKey(1);
+			//printf("wt:%f %f %f\n", tx, ty, tz);
+			//printf("wr:%f %f %f\n", rx, ry, rz);
+			//printf("jid:%d %f %f %f\n", joint_index, fx, fy, fz);
 		}
-		*/
 		
-		
+#pragma endregion
 
-	
+#pragma region release
+		camera.releaseFrames();
+		char keyq=cv::waitKey(1);
+		if (keyq == 'q')
+			break;
+#pragma endregion
+		
 		
 	}
 

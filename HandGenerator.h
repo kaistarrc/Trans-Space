@@ -5,8 +5,6 @@
 #define WR(x) std::cout << x << std::flush
 #define WRL(x) std::cout << x << std::endl
 
-
-
 class HandGenerator{
 	class Trackbar
 	{
@@ -14,59 +12,68 @@ class HandGenerator{
 			char _wname[1024];
 			int _dim;
 
-			int tb_id;
-			int* tb_val;
-
-			
-
 		public:
-			int id;
-			float* val;
 
-			//
-			int testid;
-			int testval[3];
-			float testval2[3];
+			int fid_tb;
+			int fid2_tb;
+			int fval_tb[19][3];
+			int wval_tb[6];
+
+			int fid;
+			int fid2;
+			float fval[3];
+			float wval[6];
 
 			Trackbar(){
 	
 			}
 	
-			Trackbar(const char* wname,int dim){
+			Trackbar(int dim){
 				_dim = dim;
-				tb_val = new int[_dim];
-				val = new float[_dim];
-
-				strcpy(_wname, wname);
-				cvNamedWindow(_wname, 1);	
-
+				cvNamedWindow("wrist", 1);	
+				cvNamedWindow("finger", 1);
+				cvMoveWindow("wrist", 0, 600);
+				cvMoveWindow("finger", 400, 600);
 				//initial value of trackbar
-				tb_id = 0;
-				for (int i = 0; i < _dim; i++)
-					tb_val[i] = 0;
-				tb_val[0] = 50;
-				tb_val[1] = 50;
-				tb_val[2] = 0;
-				
-				//
-				testid = 0;
+				fid_tb = 0;
+
+				for (int i = 0; i < 19;i++)
+				for (int j = 0; j < 3; j++)
+					fval_tb[i][j] = 50;
+
+				wval_tb[0] = 50;
+				wval_tb[1] = 50;
+				wval_tb[2] = 100;
+				wval_tb[3] = 50;
+				wval_tb[4] = 0;
+				wval_tb[5] = 0;
 			}
-
+			
 			void run(){
-				cvCreateTrackbar("jid", "handparam", &tb_id, _dim-1, NULL);
-				cvCreateTrackbar("param", "handparam", &tb_val[tb_id], 100, NULL);
+				cvCreateTrackbar("tx", "wrist", &wval_tb[0], 100, NULL);
+				cvCreateTrackbar("ty", "wrist", &wval_tb[1], 100, NULL);
+				cvCreateTrackbar("tz", "wrist", &wval_tb[2], 100, NULL);
+				cvCreateTrackbar("rx", "wrist", &wval_tb[3], 100, NULL);
+				cvCreateTrackbar("ry", "wrist", &wval_tb[4], 100, NULL);
+				cvCreateTrackbar("rz", "wrist", &wval_tb[5], 100, NULL);
 
-				cvCreateTrackbar("testid", "handparam", &testid, 18, NULL);
-				cvCreateTrackbar("testval0", "handparam", &testval[0], 100, NULL);
-				cvCreateTrackbar("testval1", "handparam", &testval[1], 100, NULL);
-				cvCreateTrackbar("testval2", "handparam", &testval[2], 100, NULL);
+				cvCreateTrackbar("fid", "finger", &fid_tb,18, NULL);
+				cvCreateTrackbar("fid2", "finger", &fid2_tb, 1, NULL);
+				cvCreateTrackbar("fval0", "finger", &fval_tb[fid_tb][0], 100, NULL);
+				cvCreateTrackbar("fval1", "finger", &fval_tb[fid_tb][1], 100, NULL);
+				cvCreateTrackbar("fval2", "finger", &fval_tb[fid_tb][2], 100, NULL);
 
-				for (int i = 0; i < 3; i++)
-					testval2[i] = -200 + (testval[i] / 100.0) * 400.0;
+				wval[0] = -100 + (wval_tb[0] / 100.0) * 200.0;
+				wval[1] = -100 + (wval_tb[1] / 100.0) * 200.0;
+				wval[2] =   0 +  (wval_tb[2] / 100.0) * 300.0;
+				wval[3] = -180 + (wval_tb[3] / 100.0) * 360.0;
+				wval[4] = -180 + (wval_tb[4] / 100.0) * 360.0;
+				wval[5] = -180 + (wval_tb[5] / 100.0) * 360.0;
 
-
-				for (int i = 0; i < _dim;i++)
-					val[i] = (tb_val[i] / 100.0)*(boundary_max[1][i] - boundary_max[0][i]) + boundary_max[0][i];
+				fid = fid_tb;
+				fid2 = fid2_tb;
+				for (int j = 0; j < 3; j++)
+					fval[j] = -360 + (fval_tb[fid][j] / 100.0) * 720.0;		
 			}
 	};
 
@@ -84,7 +91,7 @@ public:
 		
 
 		//init trackbar
-		_trackbar = Trackbar("handparam", handParamNum);
+		_trackbar = Trackbar(handParamNum);
 		hand_param = new float[handParamNum];
 		
 		//init hand
@@ -101,8 +108,6 @@ public:
 		//hand.initialRun();
 		
 		//trackbar initialization
-	
-
 		/*
 		WRL("Init start");
 		
@@ -125,57 +130,56 @@ public:
 		*/
 	}
 
+	void run_setTbarFromResult(float* hsol)
+	{
+		_trackbar.wval_tb[0] = (hsol[0] + 100)*(100.0 / 200.0);
+		_trackbar.wval_tb[1] = (hsol[1] + 100)*(100.0 / 200.0);
+		_trackbar.wval_tb[2] = (hsol[2] +   0)*(100.0 / 300.0);
+		_trackbar.wval_tb[3] = (hsol[3] + 180)*(100.0 / 360.0);
+		_trackbar.wval_tb[4] = (hsol[4] + 180)*(100.0 / 360.0);
+		_trackbar.wval_tb[5] = (hsol[5] + 180)*(100.0 / 360.0);
+
+		for (int i = 0; i < 5; i++)
+		{
+			_trackbar.fval_tb[4*i+0][0] = (hsol[6+4*i] + 360)*(100.0 / 720.0);
+			_trackbar.fval_tb[4*i+0][2] = (hsol[7+4*i] + 360)*(100.0 / 720.0);
+			_trackbar.fval_tb[4*i+1][0] = (hsol[8+4*i] + 360)*(100.0 / 720.0);
+			_trackbar.fval_tb[4*i+2][0] = (hsol[9+4*i] + 360)*(100.0 / 720.0);
+		}
+
+	}
+
 	void run_gui(){
-		//hand parameter.
-		//tile width, tile height
-		//particle index
 
 	//--trackbar--//
 		_trackbar.run();
-		for (int i = 0; i < handParamNum; i++)
-			hand_param[i] = _trackbar.val[i];
 
+	//--set parameter--//
+
+		//wrist
+		float tx = _trackbar.wval[0];
+		float ty = _trackbar.wval[1];
+		float tz = _trackbar.wval[2];
+		float rx = _trackbar.wval[3];
+		float ry = _trackbar.wval[4];
+		float rz = _trackbar.wval[5];
 		
-	//--temporary input of hand parameters--//
+		//finger
+		int joint_index = _trackbar.fid;
+		int positions_index = 0;// _trackbar.fid2;
+		float fx = _trackbar.fval[0];
+		float fy = _trackbar.fval[1];
+		float fz = _trackbar.fval[2];
 		
-		float fx = 0;
-		float fy = 0;
-		float fz = 0;
+		//set joint
+		//hand.GetJoint(joint_index, positions_index, fx,fy,fz);
+		hand.SetJoint(joint_index, positions_index,fx,fy,fz);
+	
 
 	//--render--//
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		for (int i = 0; i < 2;i++)
-		for (int j = 0; j < 2; j++){
-			//wrist
-			float wx = hand_param[0];
-			float wy = hand_param[1];
-			float wz = hand_param[2];
-			float rx = hand_param[3];
-			float ry = hand_param[4];
-			float rz = hand_param[5];
-
-			//finger
-			float fx = _trackbar.testval2[0];
-			float fy = _trackbar.testval2[1];
-			float fz = _trackbar.testval2[2];
-			int joint_index = _trackbar.testid;//2;
-
-			int positions_index = 0;
-
-			printf("jid:%d %f %f %f\n", joint_index, fx, fy, fz);
-			printf("w: %f %f %f\n", wx,wy,wz);
-			//-put handparam to .. using 'setJoint'.
-			//hand.GetJoint(joint_index, positions_index, fx,fy,fz);
-			hand.SetJoint(joint_index, positions_index,fx,fy,fz);
-			
-			//hand.SetJoint(0, -1,90,90,90);
-
-			///hand.Render2tile(i, j, 640, 480, rx, ry, rz, false, wx,wy,wz);
-			
-
-			//
-			//hand.SetJoint(joint_index, positions_index);
-		}
+		hand.setViewport(640, 480);
+		hand.Render(rx, ry, rz, false, tx, ty, tz, "color");	
 	}
 
 	void setHandPose(float* in)
@@ -211,12 +215,41 @@ private:
 
 	float* hand_param;
 
+	
 	void setPose(float* in){
+		
+		float f0 = -360 + (_trackbar.fval_tb[0][1] / 100.0) * 720.0;
+		float f1 = -360 + (_trackbar.fval_tb[4][1] / 100.0) * 720.0;
+		float f2 = -360 + (_trackbar.fval_tb[8][1] / 100.0) * 720.0;
+		float f3 = -360 + (_trackbar.fval_tb[12][1] / 100.0) * 720.0;
+		float f4 = -360 + (_trackbar.fval_tb[16][1] / 100.0) * 720.0;
+
+		hand.SetJoint(0, 0, in[6], f0, in[7]);
+		hand.SetJoint(1, 0, in[8], 0, 0);
+		hand.SetJoint(2, 0, in[9], 0, 0);
+
+		hand.SetJoint(4, 0, in[10], f1, in[11]);
+		hand.SetJoint(5, 0, in[12], 0, 0);
+		hand.SetJoint(6, 0, in[13], 0, 0);
+
+		hand.SetJoint(8, 0, in[14], f2, in[15]);
+		hand.SetJoint(9, 0, in[16], 0, 0);
+		hand.SetJoint(10, 0, in[17], 0, 0);
+
+		hand.SetJoint(12, 0, in[18], f3, in[19]);
+		hand.SetJoint(13, 0, in[20], 0, 0);
+		hand.SetJoint(14, 0, in[21], 0, 0);
+
+		hand.SetJoint(16, 0, in[22], f4, in[23]);
+		hand.SetJoint(17, 0, in[24], 0, 0);
+		hand.SetJoint(18, 0, in[25], 0, 0);
+
+		/*
 		hand.SetJoint(0, 0, in[6], 0, in[7]);
 		hand.SetJoint(1, 0, in[8], 0, 0);
 		hand.SetJoint(2, 0, in[9], 0, 0);
 
-		hand.SetJoint(4, 0, in[10], 0, in[11]);
+		hand.SetJoint(4, 0, in[10], -14, in[11]);
 		hand.SetJoint(5, 0, in[12], 0, 0);
 		hand.SetJoint(6, 0, in[13], 0, 0);
 
@@ -228,8 +261,10 @@ private:
 		hand.SetJoint(13, 0, in[20], 0, 0);
 		hand.SetJoint(14, 0, in[21], 0, 0);
 
-		hand.SetJoint(16, 0, in[21], 0, in[22]);
-		hand.SetJoint(17, 0, in[23], 0, 0);
-		hand.SetJoint(18, 0, in[24], 0, 0);
+		hand.SetJoint(16, 0, in[22], 0, in[23]);
+		hand.SetJoint(17, 0, in[24], 0, 0);
+		hand.SetJoint(18, 0, in[25], 0, 0);
+		*/
+		
 	}
 };

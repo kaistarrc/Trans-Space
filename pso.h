@@ -23,7 +23,10 @@
 class PSO{
 
 public:
-	PSO(int p_numX, int p_numY, int g_num, int dim,HandGenerator& renderer,GLRenderer& glrenderer,CostFunction& costFunct)
+	cv::Mat gbest;
+	
+
+	PSO(int p_numX, int p_numY, int g_num, int dim,HandGenerator* renderer,GLRenderer& glrenderer,CostFunction& costFunct)
 	{
 		_renderer = renderer;
 		_costFunct = costFunct;
@@ -158,8 +161,8 @@ public:
 		calculateGbest(0, particle_num, gbest); 
 
 		showObModelParticles("initial");
-		cv::waitKey(1);
-		cv::waitKey(1);
+		//cv::waitKey(1);
+		//cv::waitKey(1);
 
 		for (int i = 0; i < max_generation; i++){
 			calculateVelocity(0, particle_num, gbest, boundary);
@@ -184,12 +187,13 @@ public:
 			//cv::waitKey(1);
 		}
 
-		//select best solution.			
+		//select best solution.		
+		//printf("PSO\N");
 		for (int j = 0; j < dimension; j++){
 			position.at<float>(0, j) = gbest.at<float>(0, j);
 			gbest_pre.at<float>(0, j) = gbest.at<float>(0, j);
 			//cost_gbest_pre = cost_gbest;
-			printf("gbest[%d]=%f\n", j, gbest.at<float>(0, j));
+			//printf("gbest[%d]=%f\n", j, gbest.at<float>(0, j));
 		}
 
 		//printf("best:%f\n", cost_gbest);
@@ -197,14 +201,9 @@ public:
 
 		//visualize final solution
 		showDemo(cam_color);
-		/*
-		float* solp = &position.at<float>(0, 0);
-		_renderer.run(solp, "depth");
-		cv::Mat model_depth;
-		_glrenderer.getOrigImage(model_depth, "depth");
-		cv::imshow("model",model_depth);
-		cv::waitKey(1);
-		*/
+		
+		
+		
 	}
 
 private:
@@ -214,12 +213,12 @@ private:
 
 		for (int j = 0; j < dimension; j++){
 			if (j < 3){
-				boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 1;  //palm
-				boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 1;
+				boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 10;  //palm
+				boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 10;
 			}
 			else if (j >= 3 && j < fingerStartIdx){
-				boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 1;  //palm
-				boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 1;
+				boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 10;  //palm
+				boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 10;
 			}
 			else if (j >= fingerStartIdx){
 				if ((j - fingerStartIdx) % 4 == 1){
@@ -227,8 +226,8 @@ private:
 					boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 5;
 				}
 				else{
-					boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 10; //boundary_max[0][j];  //finger x
-					boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 10; //boundary_max[1][j];
+					boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 20; //boundary_max[0][j];  //finger x
+					boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 20; //boundary_max[1][j];
 					//boundary.at<float>(j, 0) = gbest_pre.at<float>(j, 0) - 30;
 					//boundary.at<float>(j, 1) = gbest_pre.at<float>(j, 0) + 30;
 				}
@@ -458,7 +457,7 @@ private:
 		{
 
 			float* solp = &position.at<float>(px + py*particle_numx,0 );
-			_renderer.runTile(px, py, solp, "depth");
+			_renderer->runTile(px, py, solp, "depth");
 		}
 		glFinish();
 		
@@ -494,7 +493,7 @@ private:
 	void showDemo(cv::Mat cam_color)
 	{
 		float* solp = &position.at<float>(0, 0);
-		_renderer.run(solp, "color");
+		_renderer->run(solp, "color");
 
 		cv::Mat model_color;
 		_glrenderer.getOrigImage(model_color, "color");
@@ -502,6 +501,7 @@ private:
 		cv::Mat fimg;
 		cv::addWeighted(cam_color, 0.3, model_color, 0.9, 0, fimg);
 		cv::imshow("final", fimg);
+		cv::imshow("model", model_color);
 		//cv::imshow("final", cam_img);
 		cv::waitKey(1);
 	}
@@ -581,7 +581,7 @@ private:
 
 	//variable
 
-	HandGenerator _renderer;
+	HandGenerator* _renderer;
 	CostFunction _costFunct;
 	GLRenderer _glrenderer;
 	//PoseSpace _posespace;
@@ -596,7 +596,7 @@ private:
 
 	cv::Mat position;
 	cv::Mat pbest;
-	cv::Mat gbest;
+	
 	cv::Mat gbest_partial[2];
 	cv::Mat gbest_pre;
 	cv::Mat pvel;

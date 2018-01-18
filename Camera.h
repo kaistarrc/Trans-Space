@@ -37,7 +37,7 @@ public:
 		calib_mat.at<float>(1, 0) = 0.0; calib_mat.at<float>(1, 1) = 477.9; calib_mat.at<float>(1, 2) = 245.9;
 		calib_mat.at<float>(2, 0) = 0.0; calib_mat.at<float>(2, 1) = 0.0; calib_mat.at<float>(2, 2) = 1.0;
 
-		_frame = -1;
+		_frame = 0;
 	}
 
 	~Camera(){
@@ -52,9 +52,19 @@ public:
 				return false;
 		}
 		else if (_camtype.compare("playcamera") == 0){
-			_frame++;
+			
 			if (playcamera->queryFrames(_frame) == false)
 				return false;
+
+			char key = cv::waitKey(1);
+			if (key == 'a'){
+				_frame++;
+				printf("frame:%d\n", _frame);
+			}
+			else if (key == 's'){
+				_frame--;
+				printf("frame:%d\n", _frame);
+			}
 		}
 		//else if (_camtype.compare("glcamera") == 0){
 		//	return true;
@@ -105,11 +115,11 @@ public:
 
 			float sol[26] = { 0, 0, 10,
 				0, 0, 10,
-				-10, -20, -20, -20,
-				-60, 15, -20, -20,
-				-50, 4, -20, -20,
-				-40, -3, -20, -20,
-				-30, -10, -20, -20 };
+				-10, 0, 0, 0,
+				-60, 0, 0, 0,
+				-50, 0, 0, 0,
+				-40, 0, 0, 0,
+				-30, 0, 0, 0 };
 			handgenerator->run(sol, "color");
 			glcamera->getOrigImage(cam_color, "color");
 		}
@@ -119,7 +129,7 @@ public:
 	}
 
 	void recordFrames(){
-		_frame++;
+		
 
 		{
 			for (int i = 0; i < width;i++)
@@ -138,6 +148,7 @@ public:
 			cv::imwrite(filename, cam_color);
 
 		}
+		_frame++;
 	}
 
 	void getCalibrationMatrix(cv::Mat& out){
@@ -153,6 +164,7 @@ public:
 		//else if (_camtype.compare("playcamera") == 0)
 		//	printf("not implemented yet\n");
 
+		
 	}
 	
 
