@@ -77,9 +77,9 @@ int GLRenderer::initGL()
 	//init glut	
 	glutInit(&myargc, myargv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	glutInitWindowSize(width, height);//(500, 500);
+	glutInitWindowSize(width_orig, height_orig);//(500, 500);
 	glutCreateWindow("glut_test");
-	//glutHideWindow();
+	glutHideWindow();
 	glEnable(GL_DEPTH_TEST); // ±Ì¿Ã »∞º∫»≠
 
 	glMatrixMode(GL_PROJECTION);

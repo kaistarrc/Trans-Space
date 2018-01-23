@@ -48,7 +48,7 @@ private:
 
 	float runningTime; // Time elapsed from last render call, used for animations timing
 
-	std::string joints[19]; // Vector with the names of the 19 bones present in the hand model
+	std::string joints[15]; // Vector with the names of the 19 bones present in the hand model
 
 public:
 

@@ -57,20 +57,25 @@ public:
 				return false;
 
 			char key = cv::waitKey(1);
-			if (key == 'a'){
+			if (key == 'z'){
 				_frame++;
 				printf("frame:%d\n", _frame);
 			}
-			else if (key == 's'){
+			else if (key == 'x'){
 				_frame--;
 				printf("frame:%d\n", _frame);
 			}
-		}
-		//else if (_camtype.compare("glcamera") == 0){
-		//	return true;
-		//}
 
-		
+			//_frame++;
+		}
+		else if (_camtype.compare("glcamera") == 0){
+			handgenerator->run_trackbar();
+			
+			if (cv::waitKey(1) == 's')
+				handgenerator->save_trackbar();
+			if (cv::waitKey(1) == 'l')
+				handgenerator->load_trackbar();
+		}
 
 		return true;
 	}
@@ -89,14 +94,7 @@ public:
 		}
 
 		else if (_camtype.compare("glcamera") == 0){
-			float sol[26] = { 0, 0, 10,
-				0, 0, 10,
-				-10, -20, -20, -20,
-				-60, 15, -20, -20,
-				-50, 4, -20, -20,
-				-40, -3, -20, -20,
-				-30, -10, -20, -20 };
-			handgenerator->run(sol, "depth");
+			handgenerator->run_gui("depth");
 			glcamera->getOrigImage(cam_depth, "depth");
 		}
 
@@ -112,15 +110,7 @@ public:
 		else if (_camtype.compare("playcamera") == 0)
 			playcamera->getColorBuffer(cam_color);
 		else if (_camtype.compare("glcamera") == 0){
-
-			float sol[26] = { 0, 0, 10,
-				0, 0, 10,
-				-10, 0, 0, 0,
-				-60, 0, 0, 0,
-				-50, 0, 0, 0,
-				-40, 0, 0, 0,
-				-30, 0, 0, 0 };
-			handgenerator->run(sol, "color");
+			handgenerator->run_gui("color");
 			glcamera->getOrigImage(cam_color, "color");
 		}
 

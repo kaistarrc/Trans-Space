@@ -5,20 +5,20 @@ const float boundary_max[2][26] = {
 	{ -100, -100, 0,
 	-360, -360, -360,
 
-	-20, -70, -90, -90,  //-90: bend
-	-90, -10, -90, -90,
-	-90, -10, -90, -90,
-	-90, -10, -90, -90,
-	-90, -40, -90, -90 },
+	-30, -70, -90, -90,  //0: stretch
+	-90, -20, -90, -90,
+	-90, -20, -90, -90,
+	-90, -20, -90, -90,
+	-90, -20, -90, -90 },
 
-	{ 100, 100, 400,
+	{ 100, 100, 300,
 	360, 360, 360,
 
-	20, 20, 0, 0,
-	0, 10, 0, 0,		//0: stretch
-	0, 10, 0, 0,
-	0, 10, 0, 0,
-	0, 10, 0, 0 }
+	50, 20, 0, 0,
+	0, 20, 0, 0,		//90: bend
+	0, 20, 0, 0,
+	0, 20, 0, 0,
+	0, 30, 0, 0 }
 };
 
 struct HandParameters
@@ -43,6 +43,7 @@ struct HandParameters
 	int particle_numx;
 	int particle_numy;
 	int handParamNum;
+	int num_joints;
 	//float boundary_max[2][26];
 
 	char* setup_vertexShaderPath;
@@ -68,13 +69,14 @@ struct HandParameters
 
 		hp.render_use_full_model = false;
 		hp.render_bone_sight = false;// true;
-		hp.render_FOV = 60.0f;
+		
 		hp.render_near = 0.01f;
 		hp.render_far = 10000;//20.0f;
 		hp.cx =  326.6;
 		hp.cy =  245.9;
 		hp.fx =  477.9;
 		hp.fy =  477.9;
+		
 		hp.render_animationSpeed = 0.01f;
 		hp.width_tile = 128;
 		hp.height_tile = 128;
@@ -83,6 +85,9 @@ struct HandParameters
 		hp.particle_numx = 8;
 		hp.particle_numy = 4;
 		hp.handParamNum = 26;
+		hp.num_joints = 15;
+
+		hp.render_FOV = 2 * atan(hp.width / (2 * hp.fx))*180.0/3.14;
 
 
 		/*
@@ -133,7 +138,16 @@ struct HandParameters
 		hp.setup_shader_boneUniformName = "bone_matrix";
 
 		hp.setup_model_path_full = "data/hand_model_full.dae";
-		hp.setup_model_path_low = "data/hand_model.dae";
+		hp.setup_model_path_low = "data/HandModification3.dae";
+
+
+		//hp.setup_model_path_low = "data/LeftHand3.dae";
+		//hp.setup_model_path_low = "data/leapmotionorig.dae";
+		//hp.setup_model_path_low = "data/righthand.dae";
+		//hp.setup_model_path_low = "data/hand_model_leap.dae";
+		//hp.setup_model_path_low = "data/new hand1.dae";
+		//hp.setup_model_path_low = "data/hand_model_orig.dae";
+		//hp.setup_model_path_low = "data/test05.dae";
 		hp.setup_model_property_path = "data/hand.property";
 		hp.setup_model_rules_path = "data/hand.property.rules";
 		hp.setup_modelTexture_path = "data/hand_texture_image.bmp";
@@ -164,6 +178,9 @@ struct HandParameters
 		dst->height = height;
 		dst->particle_numx = particle_numx;
 		dst->particle_numy = particle_numy;
+		dst->handParamNum = handParamNum;
+		dst->num_joints = num_joints;
+
 
 		//for (int i = 0; i < handParamNum; i++){
 		//	dst->boundary_max[0][i] = boundary_max[0][i];

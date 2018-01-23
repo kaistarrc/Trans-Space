@@ -406,7 +406,7 @@ public:
 		cv::line(in_temp, cv::Point(bx0, by0), cv::Point(bx1, by0), cv::Scalar(255), 1, 8, 0);
 		cv::line(in_temp, cv::Point(bx0, by1), cv::Point(bx1, by1), cv::Scalar(255), 1, 8, 0);
 		cv::line(in_temp, cv::Point(bx1, by0), cv::Point(bx1, by1), cv::Scalar(255), 1, 8, 0);
-		cv::imshow("boundary", in_temp);
+		//cv::imshow("boundary", in_temp);
 
 	}
 

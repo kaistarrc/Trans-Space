@@ -263,6 +263,7 @@ void RealSenseCVWrapper::getCalibrationStatus()
 	cameraMatrix.at<float>(0, 2) = calib.principalPoint.x;
 	cameraMatrix.at<float>(1, 2) = calib.principalPoint.y;
 
+	
 	distCoeffs = Mat::zeros(5, 1, CV_32FC1);
 	distCoeffs.at<float>(0) = calib.radialDistortion[0];
 	distCoeffs.at<float>(1) = calib.radialDistortion[1];

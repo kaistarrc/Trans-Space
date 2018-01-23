@@ -163,8 +163,10 @@ public:
 		showObModelParticles("initial");
 		//cv::waitKey(1);
 		//cv::waitKey(1);
-
+		
+		
 		for (int i = 0; i < max_generation; i++){
+			
 			calculateVelocity(0, particle_num, gbest, boundary);
 
 			if (type.compare("6D")==0)
@@ -174,33 +176,33 @@ public:
 				updatePalm(20, 26, gbest_pre, boundary);
 				updateAll(26, particle_num);
 			}
-
-
+			
+			
 			calculateCost();
 			calculatePbest();//ok
 			calculateGbest(0, particle_num, gbest);//ok
-
+			
 			//showObModelParticles("during");
 			//cv::moveWindow("during", 896, 0);
 			//cv::waitKey(1);
 			//printf("costgbest[%d]:%f\n", i, cost_gbest);
 			//cv::waitKey(1);
 		}
+		
 
 		//select best solution.		
 		//printf("PSO\N");
+		
 		for (int j = 0; j < dimension; j++){
 			position.at<float>(0, j) = gbest.at<float>(0, j);
 			gbest_pre.at<float>(0, j) = gbest.at<float>(0, j);
 			//cost_gbest_pre = cost_gbest;
 			//printf("gbest[%d]=%f\n", j, gbest.at<float>(0, j));
 		}
-
-		//printf("best:%f\n", cost_gbest);
-		//printf("best_pre:%f\n",cost_gbest_pre);
+		
 
 		//visualize final solution
-		showDemo(cam_color);
+		showDemo(cam_color,cam_depth);
 		
 		
 		
@@ -457,7 +459,7 @@ private:
 		{
 
 			float* solp = &position.at<float>(px + py*particle_numx,0 );
-			_renderer->runTile(px, py, solp, "depth");
+			_renderer->renderTile(px, py, solp, "depth");
 		}
 		glFinish();
 		
@@ -490,10 +492,11 @@ private:
 		cv::waitKey(1);
 	}
 
-	void showDemo(cv::Mat cam_color)
+	void showDemo(cv::Mat cam_color,cv::Mat cam_depth)
 	{
+		//--color
 		float* solp = &position.at<float>(0, 0);
-		_renderer->run(solp, "color");
+		_renderer->renderOrig(solp, "color");
 
 		cv::Mat model_color;
 		_glrenderer.getOrigImage(model_color, "color");
@@ -503,6 +506,28 @@ private:
 		cv::imshow("final", fimg);
 		cv::imshow("model", model_color);
 		//cv::imshow("final", cam_img);
+		cv::waitKey(1);
+
+		//-- depth
+		_renderer->renderOrig(solp, "depth");
+
+		cv::Mat model_depth;
+		_glrenderer.getOrigImage(model_depth, "depth");
+
+		//hard coding for debugging.
+		cv::Mat difdepth = model_depth - cam_depth;
+		cv::Mat difdepth8u = cv::Mat(480, 640, CV_8UC3);
+		difdepth8u.setTo(0);
+		for (int i = 0; i < 640;i++)
+		for (int j = 0; j < 480; j++)
+		{
+			difdepth.at<float>(j, i) = abs(difdepth.at<float>(j, i));
+
+			//if (difdepth.at<float>(j, i) < 0)
+			//	difdepth.at<float>(j, i) = 0;
+		}
+		cv::normalize(difdepth, difdepth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
+		cv::imshow("dif", difdepth8u);
 		cv::waitKey(1);
 	}
 
