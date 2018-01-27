@@ -233,7 +233,7 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 	{
 		int BoneIndex = 0;
 		std::string BoneName(input_scene->mMeshes[0]->mBones[i]->mName.data);
-		//printf("bonename:%s\n", BoneName);
+		//printf("[%d]bonename:%s\n", i,BoneName);
 		if (bone_map.find(BoneName) == bone_map.end())
 		{
 			// Allocate an index for a new bone
@@ -254,21 +254,21 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 			float Weight = input_scene->mMeshes[0]->mBones[i]->mWeights[j].mWeight;
 			Bones[VertexID].AddBoneData(BoneIndex, Weight);
 
-			if (Weight >0.7f)
+			if (Weight >0.0f)	// if(Weight >0.7f)
 			{
+				//printf("boneindex:%d more than weight\n", BoneIndex);
 				bone_data[BoneIndex].pos.x += input_scene->mMeshes[0]->mVertices[VertexID].x;// * Weight;
 				bone_data[BoneIndex].pos.y += input_scene->mMeshes[0]->mVertices[VertexID].y;// * Weight;
 				bone_data[BoneIndex].pos.z += input_scene->mMeshes[0]->mVertices[VertexID].z;// * Weight;
 				bone_data[BoneIndex].pos_count++;
 			}
+
 		}
 	}
 	std::vector<int> ff;
 	for (int i = 0; i < Bones.size(); i++)
 	{
 		ff.push_back((int)Bones[i].temp_vec.size());
-
-
 
 		std::vector<float> l;
 
@@ -290,10 +290,12 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 		Bones[i].FinishData();
 	for (int i = 0; i < bone_data.size(); i++)
 	{
+		//printf("i:%d\n", i);
 		bone_data[i].pos.x /= bone_data[i].pos_count;
 		bone_data[i].pos.y /= bone_data[i].pos_count;
 		bone_data[i].pos.z /= bone_data[i].pos_count;
 		bone_data[i].pos.w = 1.0f;
+		//printf("bone pos[%d]: %f %f %f\n", i, bone_data[i].pos.x, bone_data[i].pos.y, bone_data[i].pos.z);
 	}
 #pragma endregion
 
@@ -652,11 +654,10 @@ void ElaborateBonesPositions(const aiNode* pNode, const Matrix4f& ParentTransfor
 		//for (int i = 0; i < 4;i++)
 		//for (int j = 0; j < 4; j++)
 		//	printf("[%d][%d]=%f\n", i, j, bone_data[BoneIndex].possible_positions[bone_data[BoneIndex].current_position].impRot.m[i][j]);
-
+		//printf("NodeName:%s boneindex:%d\n", NodeName,BoneIndex);
 		//
 		GlobalTransformation = GlobalTransformation * bone_data[BoneIndex].possible_positions[bone_data[BoneIndex].current_position].impRot;
 		bone_data[BoneIndex].FinalTransformation = matrix_globalInverseTransform * GlobalTransformation * bone_data[BoneIndex].BoneOffset;
-
 	}
 
 	for (unsigned int i = 0; i < pNode->mNumChildren; i++)
@@ -696,16 +697,33 @@ void ComputeBoneStatic(std::vector<Matrix4f>& Transforms)
 
 	for (int i = 0; i < bone_count; i++)
 	{
+		//printf("check[%d]\n", i);
+
 		Transforms[i] = bone_data[i].FinalTransformation;
+		//printf("Transforms:%f\n", Transforms[i].m[0][0]);
+
 		bone_data[i].pos_transformed = Transforms[i] * bone_data[i].pos;
+		//printf("bone_data[i].pos:%f\n",bone_data[i].pos.x);
+		//printf("[%d]%f %f %f\n", i, bone_data[i].pos_transformed.x, bone_data[i].pos_transformed.y, bone_data[i].pos_transformed.z);
+		//printf("\n");
 	}
 }
 void RenderBones()
 {
+	for (int i = 0; i < 25; i++)
+	{
+		//printf("p %.2f %.2f %.2f\n", bone_data[i].pos_transformed.x, bone_data[i].pos_transformed.y, bone_data[i].pos_transformed.z);
+		glTranslatef(bone_data[i].pos_transformed.x, bone_data[i].pos_transformed.y, bone_data[i].pos_transformed.z);
+		glColor3f(1.0f, 0.0f, 1.0f);
+		//glutWireSphere(2, 2, 2);
+		glutSolidSphere(2, 2, 2);
+	}
+	/*
 	int i = bone_to_render;
 	glTranslatef(bone_data[i].pos_transformed.x, bone_data[i].pos_transformed.y, bone_data[i].pos_transformed.z);
 	glColor3f(1.0f, 0.0f, 1.0f);
-	glutWireSphere(0.4, 5, 5);
+	glutWireSphere(2, 2, 2);
+	*/
 }
 
 Hand::Hand(void)
@@ -755,9 +773,13 @@ bool Hand::Init(HandParameters parameters)
 	persProjInfo.cx = param.cx;
 	persProjInfo.cy = param.cy;
 	persProjInfo.FOV = param.render_FOV;
+
 	//printf("fov:param.render_fov:%f\n", param.render_FOV);
-	matrix_projection = Matrix4f::MakeProjectionMatrix(persProjInfo);
-	//matrix_projection = Matrix4f::Set_GL_PROJECTION(persProjInfo);
+	//matrix_projection = Matrix4f::MakeProjectionMatrix(persProjInfo);
+	matrix_projection = Matrix4f::Set_GL_PROJECTION(persProjInfo);
+	//for (int i = 0; i < 4;i++)
+	//for (int j = 0; j < 4; j++)
+	//	printf("[%d][%d]:%.2f\n", j, i, matrix_projection.m[j][i]);
 
 	// Enabling some OpenGL features needed
 	glEnable(GL_TEXTURE_2D);
@@ -919,14 +941,15 @@ void Hand::Render(float r_x, float r_y, float r_z, bool cont_rot, float wx, floa
 		ComputeBoneStatic(Transforms);
 	else
 		ComputeBoneAnimation(runningTime, Transforms);
+
 	for (int i = 0; i < Transforms.size(); i++)
 		glUniformMatrix4fv(shader_bones_loc[i], 1, GL_TRUE, (const GLfloat*)Transforms[i]);
 
 
 
 	
-	matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(15, 15, 15);
-	matrix_translation = Matrix4f::MakeTranslationMatrix(wx, wy, wz);
+	matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(13, 13, 13);//15
+	matrix_translation = Matrix4f::MakeTranslationMatrix(wx, wy,wz);
 	matrix_modelViewProj = matrix_projection * matrix_translation * matrix_model;
 	matrix_modelView = matrix_translation*matrix_model;
 	
@@ -986,6 +1009,7 @@ void Hand::SetJoint(int jn, int pc, float x, float y, float z)
 	//printf("\n");
 	//if (pc != 0)
 	//{
+	//printf("(setjoint) BoneIndex:%d\n", BoneIndex);
 	bone_data[BoneIndex].possible_positions[pc].impRot = Matrix4f::MakeRotationMatrix(x, y, z);
 	bone_data[BoneIndex].possible_positions[pc].imp_rot_x = x;
 	bone_data[BoneIndex].possible_positions[pc].imp_rot_y = y;
@@ -993,10 +1017,37 @@ void Hand::SetJoint(int jn, int pc, float x, float y, float z)
 	//}
 	bone_data[BoneIndex].current_position = pc;
 	bone_to_render = BoneIndex;
+}
 
+void Hand::GetJointPosition(int fi, int ji, float* out)
+{
+	/*
+	int BoneIndex = ji;
 
+	Matrix4f mvp_t = matrix_modelViewProj.Transpose();
+	bone_data[BoneIndex].pos_transformed = matrix_modelView*bone_data[BoneIndex].pos_transformed;
+	//bone_data[BoneIndex].pos_transformed =mvp_t*bone_data[BoneIndex].pos_transformed;
+
+	out[0] = bone_data[BoneIndex].pos_transformed.x;
+	out[1] = -bone_data[BoneIndex].pos_transformed.y;
+	out[2] = bone_data[BoneIndex].pos_transformed.z;
+	*/
+	
+	int jn = 3 * fi + ji;
+	assert(bone_map.find(joints[jn]) != bone_map.end());
+	int BoneIndex = bone_map[joints[jn]];
+
+	Matrix4f mvp_t = matrix_modelViewProj.Transpose();
+	bone_data[BoneIndex].pos_transformed = matrix_modelView*bone_data[BoneIndex].pos_transformed;
+	//bone_data[BoneIndex].pos_transformed =mvp_t*bone_data[BoneIndex].pos_transformed;
+	
+	out[0] = bone_data[BoneIndex].pos_transformed.x;
+	out[1] = -bone_data[BoneIndex].pos_transformed.y;
+	out[2] = bone_data[BoneIndex].pos_transformed.z;
+	
 
 }
+
 void Hand::GetJoint(int jn, int pc, float &x, float &y, float &z)
 {
 	assert(bone_map.find(joints[jn]) != bone_map.end());

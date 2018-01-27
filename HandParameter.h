@@ -29,6 +29,7 @@ struct HandParameters
 	bool render_use_full_model;
 	bool render_bone_sight;
 	float render_FOV;
+
 	float render_near;
 	float render_far;
 	float cx;
@@ -71,9 +72,9 @@ struct HandParameters
 		hp.render_bone_sight = false;// true;
 		
 		hp.render_near = 0.01f;
-		hp.render_far = 10000;//20.0f;
-		hp.cx =  326.6;
-		hp.cy =  245.9;
+		hp.render_far = 1000;//20.0f;
+		hp.cx =  320.0;
+		hp.cy =  240.0;
 		hp.fx =  477.9;
 		hp.fy =  477.9;
 		
@@ -87,8 +88,9 @@ struct HandParameters
 		hp.handParamNum = 26;
 		hp.num_joints = 15;
 
-		hp.render_FOV = 2 * atan(hp.width / (2 * hp.fx))*180.0/3.14;
-
+		hp.render_FOV = 2 * atan(hp.width / (2 * hp.fx))*180.0 / 3.14;
+		//hp.render_FOVx = 2 * atan(hp.width / (2 * hp.fx))*180.0 / 3.14;
+		//hp.render_FOVy = 2 * atan(hp.height / (2 * hp.fy))*180.0 / 3.14;
 
 		/*
 		hp.boundary_max[0][0] = -100;	hp.boundary_max[1][0] = 100;
@@ -138,7 +140,10 @@ struct HandParameters
 		hp.setup_shader_boneUniformName = "bone_matrix";
 
 		hp.setup_model_path_full = "data/hand_model_full.dae";
-		hp.setup_model_path_low = "data/HandModification3.dae";
+
+		hp.setup_model_path_low = "data/20180126HandModification_highpoly.dae";
+		//hp.setup_model_path_low = "data/20180126HandModification.dae";
+		//hp.setup_model_path_low = "data/HandModification3.dae";
 
 
 		//hp.setup_model_path_low = "data/LeftHand3.dae";
@@ -164,6 +169,8 @@ struct HandParameters
 		dst->render_use_full_model = render_use_full_model;
 		dst->render_bone_sight = render_bone_sight;
 		dst->render_FOV = render_FOV;
+		//dst->render_FOVx = render_FOVx;
+		//dst->render_FOVy = render_FOVy;
 		dst->render_near = render_near;
 		dst->render_far = render_far;
 		dst->cx = cx;

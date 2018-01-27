@@ -44,9 +44,11 @@ public:
 		rgb = cv::imread(filename, 1);
 		
 		//depth read
+		
 		sprintf(filename, "frames/depth-%07u.png",  framein);
-		depth = cv::imread(filename, 2);
-	
+		depth = cv::imread(filename, 2);	
+		//sprintf(filename, "save/cnn/train/data/depth-%07u.png", framein);
+		//depth = cv::imread(filename, 2);
 		
 
 		cv::Mat rr = rgb;
@@ -76,10 +78,7 @@ public:
 		depth.copyTo(out);
 	}
 
-	void releaseFrames(){
-
-		//_frame++;
-	}
+	
 
 
 

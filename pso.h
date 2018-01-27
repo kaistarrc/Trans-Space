@@ -494,6 +494,9 @@ private:
 
 	void showDemo(cv::Mat cam_color,cv::Mat cam_depth)
 	{
+		cv::Mat cam_depth_debug;
+		cam_depth.copyTo(cam_depth_debug);
+
 		//--color
 		float* solp = &position.at<float>(0, 0);
 		_renderer->renderOrig(solp, "color");
@@ -520,12 +523,8 @@ private:
 		difdepth8u.setTo(0);
 		for (int i = 0; i < 640;i++)
 		for (int j = 0; j < 480; j++)
-		{
 			difdepth.at<float>(j, i) = abs(difdepth.at<float>(j, i));
 
-			//if (difdepth.at<float>(j, i) < 0)
-			//	difdepth.at<float>(j, i) = 0;
-		}
 		cv::normalize(difdepth, difdepth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
 		cv::imshow("dif", difdepth8u);
 		cv::waitKey(1);

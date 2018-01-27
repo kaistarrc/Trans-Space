@@ -7,6 +7,28 @@
 
 const float bar_range = 100;
 
+
+int poseidx = 0;
+
+//--move finger--//
+const int controlDim = 5;
+//const int maxNumPose = 3125; //train
+//const int posestep = 5; //train
+
+const int maxNumPose = 1024; //test
+const int posestep=4; //test
+//--move finger--//
+
+//--move wrist--//
+//const int controlDim = 3;
+//const int maxNumPose = 5832; //train
+//const int posestep = 18; //train
+//
+////const int maxNumPose = 1000; //test
+////const int posestep=10; //test
+//--move wrist--//
+
+
 class HandGenerator{
 	class Trackbar
 	{
@@ -39,17 +61,29 @@ class HandGenerator{
 				fid_tb = 0;
 				jid_tb = 0;
 
-				wval_tb[0] = 99;
-				wval_tb[1] = 32;
-				wval_tb[2] = 42;//84;
-				wval_tb[3] = 73;
-				wval_tb[4] = 45;
-				wval_tb[5] = 53;
+				//init wval_tb&fval_tb
+				wval_tb[0] = 50;//50
+				wval_tb[1] = 20;//30
+				wval_tb[2] = 50;//84;
+				wval_tb[3] = 75;
+				wval_tb[4] = 50;
+				wval_tb[5] = 50;
 
 				for (int i = 0; i < 15;i++)
 				for (int j = 0; j < 3; j++)
 					fval_tb[i][j] = 50;
 
+				//init wval&fval
+				wval[0] = -100 + (wval_tb[0] / bar_range) * 200.0;
+				wval[1] = -100 + (wval_tb[1] / bar_range) * 200.0;
+				wval[2] = 0 + (wval_tb[2] / bar_range) * 600.0;
+				wval[3] = -180 + (wval_tb[3] / bar_range) * 360.0;
+				wval[4] = -180 + (wval_tb[4] / bar_range) * 360.0;
+				wval[5] = -180 + (wval_tb[5] / bar_range) * 360.0;
+
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval[i][j] = -180 + (fval_tb[i][j] / bar_range) * 360.0;
 			}
 
 			
@@ -133,6 +167,7 @@ class HandGenerator{
 
 public:
 	Trackbar _trackbar;
+	Hand hand;
 
 	HandGenerator(){
 
@@ -205,6 +240,63 @@ public:
 	void run_trackbar(){
 		_trackbar.run();
 	}
+
+	int run_animation(){
+		
+		//////--move finger--//////	
+		int ani_idx[controlDim];
+		int poseidx2 = poseidx;
+
+		for (int i = 0; i < controlDim-1; i++){
+			ani_idx[i] = poseidx2 / pow(posestep, (controlDim - 1)-i);
+			poseidx2 -= pow(posestep, (controlDim - 1) - i)*ani_idx[i];
+		}
+		ani_idx[controlDim - 1] = poseidx2;
+
+		for (int i = 0; i < controlDim; i++){
+			//_trackbar.fval[3 * i][0] = ani_idx[i] * (100 / posestep); //train
+			_trackbar.fval[3 * i][0] = ani_idx[i] * (124 / posestep); //test
+			//printf("fval:%f\n", _trackbar.fval[3 * i][0]);
+		}
+		poseidx++;
+
+		if (poseidx == (maxNumPose+1))
+			return -1;
+
+		//printf("%d %d %d %d %d\n",ani_idx[0], ani_idx[1], ani_idx[2], ani_idx[3], ani_idx[4]);
+
+		return 0;
+		
+
+//////--rotate wrist--//////
+		/*
+		//make animation index
+		int ani_idx[controlDim];
+		int poseidx2 = poseidx;
+
+		ani_idx[0] = poseidx2 / (posestep*posestep); 
+		poseidx2 -= (posestep*posestep) * ani_idx[0];
+
+		ani_idx[1] = poseidx2 / posestep;
+		poseidx2 -= posestep * ani_idx[1];
+
+		ani_idx[2] = poseidx2;
+
+		//put hand parameter.
+
+		_trackbar.wval[3] = ani_idx[0] * (180/posestep); 
+		_trackbar.wval[4] = ani_idx[1] * (180/posestep);
+		_trackbar.wval[5] = ani_idx[2] * (180/posestep);
+				
+		poseidx++;
+
+		if (poseidx == maxNumPose)
+			return -1;
+
+		return 0;
+		*/
+	}
+
 	void save_trackbar(){
 		int cid;
 		printf("class index to save:\n");
@@ -233,7 +325,7 @@ public:
 			float fy = _trackbar.fval[i*3+j][1];
 			float fz = _trackbar.fval[i*3+j][2];
 
-			printf("[%d][%d]=%.2f %.2f %.2f\n", i, j, fx, fy, fz);
+			//printf("[%d][%d]=%.2f %.2f %.2f\n", i, j, fx, fy, fz);
 			renderGui(tx, ty, tz, rx, ry, rz, fx, fy, fz, i*3+j, type);
 		}
 
@@ -277,7 +369,7 @@ public:
 
 
 private:
-	Hand hand;
+	
 	HandParameters hp;
 
 	int handParamNum;
@@ -312,28 +404,6 @@ private:
 		hand.SetJoint(12, 0, in[22], -10, in[23]);
 		hand.SetJoint(13, 0, in[24], 0, 0);
 		hand.SetJoint(14, 0, in[25], 0, 0);
-		
-		/*
-		hand.SetJoint(0, 0, in[6], 0, in[7]);
-		hand.SetJoint(1, 0, in[8], 0, 0);
-		hand.SetJoint(2, 0, in[9], 0, 0);
 
-		hand.SetJoint(4, 0, in[10], 0, in[11]);
-		hand.SetJoint(5, 0, in[12], 0, 0);
-		hand.SetJoint(6, 0, in[13], 0, 0);
-
-		hand.SetJoint(8, 0, in[14], 0, in[15]);
-		hand.SetJoint(9, 0, in[16], 0, 0);
-		hand.SetJoint(10, 0, in[17], 0, 0);
-
-		hand.SetJoint(12, 0, in[18], 0, in[19]);
-		hand.SetJoint(13, 0, in[20], 0, 0);
-		hand.SetJoint(14, 0, in[21], 0, 0);
-
-		hand.SetJoint(16, 0, in[22], 0, in[23]);
-		hand.SetJoint(17, 0, in[24], 0, 0);
-		hand.SetJoint(18, 0, in[25], 0, 0);
-		*/
-		
 	}
 };

@@ -270,3 +270,5 @@ data/
 *.vcxproj
 *.filters
 frames/
+frames_pre/
+save/

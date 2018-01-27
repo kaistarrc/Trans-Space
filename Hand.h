@@ -31,7 +31,7 @@ private:
 	GLuint shader_modelViewProj_loc; // location of the modelViewProj matrix uniform
 	GLuint shader_modelView_loc;
 	GLuint shader_texture_loc; // location of the texture uniform
-	GLuint shader_bones_loc[30]; // location of the bones uniform
+	GLuint shader_bones_loc[25]; // location of the bones uniform
 	GLuint shader_id; // id of the compiled shader
 	GLuint stf_fbo; // location of the FrameBufferObject containing all setup data
 	GLuint stf_pboIds[2]; // location of the two PixelBufferObjects
@@ -132,6 +132,8 @@ public:
 	*	\param pc Integer reference of the positions of the joint
 	**/
 	void GetJointPos(int jn, int &pc);
+
+	void GetJointPosition(int fi, int ji, float* out);
 
 	/**
 	*	\brief Gets the name of the joint

@@ -216,6 +216,8 @@ public:
 			cube[3] = height;
 		if (cube[4] < 0)
 			cube[4] = 0;
+
+		
 	}
 
 	void normalizeImage(float* com, float* cubesize, cv::Mat& inout)
@@ -376,10 +378,11 @@ public:
 			com[0] = width / 2; com[1] = height / 2; com[2] = 200;
 		}
 
-
+		
 		//3D bound from 2.5d CoM.
 		comToBounds(com, cubesize, cube);
 
+		//printf("cube: %f %f %f %f %f %f\n", cube[0], cube[1], cube[2], cube[3], cube[4], cube[5]);
 
 		//normalize -1~1
 		cv::Mat in_norm;

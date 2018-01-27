@@ -6,6 +6,7 @@ MMF::MMF(int w, int h){
 	height = h;
 
 	DATA_LEN = width*height*sizeof(float); //how to do this automatically?
+	DATA_LEN2 = 5 * 3 * 3;
 	_cnnimg = cv::Mat(height, width, CV_32FC1);
 
 	//char memoryname[1024];
@@ -42,6 +43,9 @@ MMF::MMF(int w, int h){
 	if (lpMapping_send == NULL)
 		printf("lpmapping fail\n");
 
+
+	//memory
+	DL_result = new float[DATA_LEN2];
 
 	//??
 	getimg_bool = false;
@@ -89,7 +93,7 @@ int MMF::receiveData()
 			"LearningResult");
 
 		// 파일에 매핑하기
-		lpMapping_receive = (unsigned short*)MapViewOfFile(hMapRead,
+		lpMapping_receive = (float*)MapViewOfFile(hMapRead,
 			FILE_MAP_READ,
 			0,
 			0,
@@ -99,12 +103,19 @@ int MMF::receiveData()
 	}
 
 
-	DL_result = lpMapping_receive[0];
+	//DL_result = lpMapping_receive[0];
+	for (int i = 0; i < DATA_LEN2; i++)
+		DL_result[i] = lpMapping_receive[i];
 
 	return 0;
 }
 
-void MMF::getLabel(int& out)
+void MMF::getLabel(float* out)
 {
-	out = DL_result;
+	for (int i = 0; i < DATA_LEN2; i++)
+		out[i] = DL_result[i];
+		//out.push_back(i);
+		//out.push_back(DL_result[i]);
+
+	//out = DL_result;
 }

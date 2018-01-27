@@ -9,6 +9,9 @@
 class Camera{
 
 public:
+
+	int _frame;
+
 	Camera(){
 
 	}
@@ -33,8 +36,8 @@ public:
 		cam_depth = cv::Mat(h, w, CV_32FC1);
 		calib_mat = cv::Mat(3, 3, CV_32FC1);
 
-		calib_mat.at<float>(0, 0) = 477.9; calib_mat.at<float>(0, 1) = 0.0; calib_mat.at<float>(0, 2) = 326.6;
-		calib_mat.at<float>(1, 0) = 0.0; calib_mat.at<float>(1, 1) = 477.9; calib_mat.at<float>(1, 2) = 245.9;
+		calib_mat.at<float>(0, 0) = 477.9; calib_mat.at<float>(0, 1) = 0.0; calib_mat.at<float>(0, 2) = 320.0;
+		calib_mat.at<float>(1, 0) = 0.0; calib_mat.at<float>(1, 1) = 477.9; calib_mat.at<float>(1, 2) = 240.0;
 		calib_mat.at<float>(2, 0) = 0.0; calib_mat.at<float>(2, 1) = 0.0; calib_mat.at<float>(2, 2) = 1.0;
 
 		_frame = 0;
@@ -66,10 +69,13 @@ public:
 				printf("frame:%d\n", _frame);
 			}
 
-			//_frame++;
+			
 		}
 		else if (_camtype.compare("glcamera") == 0){
-			handgenerator->run_trackbar();
+			//handgenerator->run_trackbar();
+
+			if (handgenerator->run_animation() == -1)
+				return false;
 			
 			if (cv::waitKey(1) == 's')
 				handgenerator->save_trackbar();
@@ -95,6 +101,7 @@ public:
 
 		else if (_camtype.compare("glcamera") == 0){
 			handgenerator->run_gui("depth");
+			glFinish();
 			glcamera->getOrigImage(cam_depth, "depth");
 		}
 
@@ -111,6 +118,7 @@ public:
 			playcamera->getColorBuffer(cam_color);
 		else if (_camtype.compare("glcamera") == 0){
 			handgenerator->run_gui("color");
+			glFinish();
 			glcamera->getOrigImage(cam_color, "color");
 		}
 
@@ -138,7 +146,7 @@ public:
 			cv::imwrite(filename, cam_color);
 
 		}
-		_frame++;
+		
 	}
 
 	void getCalibrationMatrix(cv::Mat& out){
@@ -154,7 +162,7 @@ public:
 		//else if (_camtype.compare("playcamera") == 0)
 		//	printf("not implemented yet\n");
 
-		
+		_frame++;
 	}
 	
 
@@ -174,7 +182,7 @@ private:
 	int width;
 	int height;
 
-	int _frame;
+	
 
 	cv::Mat calib_mat;
 };
