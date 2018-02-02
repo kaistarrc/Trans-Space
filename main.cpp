@@ -19,7 +19,7 @@
 
 pthread_t thread_id;
 int state;
-MMF mmf(128,128);
+static MMF mmf(128,128);
 
 void stopWatch()
 {
@@ -431,10 +431,15 @@ void main()
 
 #ifndef TWOINPUTTEST
 
+
+
 void main()
 {
 #pragma region user parameter setting
-	std::string cameratype = "realcamera"; //"realcamera", "playcamera", "glcamera",
+	//"realcamera", "playcamera", "glcamera_gui", "glcamera_dataset"
+	//"glcamera_test"
+
+	std::string cameratype = "glcamera_test"; 
 	int width = 640;
 	int height = 480;
 	int width_tile = 128;
@@ -454,13 +459,13 @@ void main()
 	//option
 	bool segmenthand_enable = true;  // use blue band
 
-	bool sendcamimg_enable = true;//send
+	bool sendcamimg_enable = false; //true;//send
 	bool sendresultimg_enable = false;//send
 	
 	bool savegroundtruth_enable = false;//save
-	bool record_enable = false;//save
+	bool record_enable = false;
 
-	bool showgroundtruth_enable = false;//show
+	bool showgroundtruth_enable = true;//show
 	bool showcnnresult_enable = false;//show
 
 	
@@ -478,27 +483,18 @@ void main()
 	GLRenderer glrenderer(width, height, width_tile, height_tile, width_fb, height_fb);
 	HandGenerator handgenerator(hp);
 	CostFunction costFunction(particle_numx, particle_numy, handParamNum,glrenderer);
-	PSO pso(particle_numx, particle_numy, max_generation,handParamNum,&handgenerator,glrenderer,costFunction);
+	PSO pso(particle_numx, particle_numy, max_generation,handParamNum,
+		&handgenerator,glrenderer,costFunction,&mmf);
 	
 	Camera camera(width, height, &handgenerator, &glrenderer, cameratype);
 	Preprocessing preproc(width, height,camera);
 #pragma endregion
 
-	//initial pose before tracking.
-	float in[26] = { 96, -27, 250,
-		97, -18, 10,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0,
-		0, 0, 0, 0 };
-	pso.setGbestPre(in);
-	
-	
 	//common variable
 	float com_hand[3];
 	cv::Mat cam_depth16= cv::Mat(height, width, CV_16UC1);
 
+	
 	while (1){
 		if (camera.queryFrames() == false)
 			break;
@@ -517,17 +513,18 @@ void main()
 		cv::Mat cam_color;
 		camera.getMappedColorBuffer(cam_color);
 		cv::imshow("cam_color", cam_color);
+		cv::moveWindow("cam_color", 640 * 2, 0);
 		//glutSwapBuffers();
 
 #pragma endregion 
 
 #pragma region record frames
-		
-		if (record_enable == true){
-			if (cv::waitKey(1) == 'r'){
-				printf("record start\n");
-				camera.recordFrames();
-			}
+		if (cv::waitKey(1) == 'r')
+			record_enable = true;
+
+		if (record_enable == true){	
+			printf("record start\n");
+			camera.recordFrames();
 		}
 		
 		
@@ -570,6 +567,38 @@ void main()
 #pragma region make ground truth for cnn
 		if (showgroundtruth_enable == true)
 		{
+			std::vector<float> jpos;
+			handgenerator.hand.GetJointAllPosition(&jpos);
+
+			int idx[20] = { 1, 2, 3, 4,
+				6, 7, 8, 9,
+				11, 12, 13, 14,
+				16, 17, 18, 19,
+				21, 22, 23, 24 };
+			int color[5][3] = { { 255, 0, 0 }, { 0, 255, 0 }, { 0, 0, 255 }, { 255, 255, 0 }, { 255, 255, 255 } };
+
+			cv::Mat cmat;
+			camera.getCalibrationMatrix(cmat);
+		
+			for(int i = 0; i < 20; i++)
+			{
+				int jid = idx[i];
+
+				float x = jpos[3 * jid + 0];
+				float y = jpos[3 * jid + 1];
+				float z = jpos[3 * jid + 2];
+
+				float x_ = x * cmat.at<float>(0, 0) + y * cmat.at<float>(0, 1) + z * cmat.at<float>(0, 2);
+				float y_ = x * cmat.at<float>(1, 0) + y * cmat.at<float>(1, 1) + z * cmat.at<float>(1, 2);
+				float z_ = x * cmat.at<float>(2, 0) + y * cmat.at<float>(2, 1) + z * cmat.at<float>(2, 2);
+				x_ /= z_;
+				y_ /= z_;
+
+				cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(color[i/4][0], color[i/4][1], color[i/4][2]), 5, 8, 0);
+
+			}
+			cv::imshow("groundtruth", cam_color);
+			/*
 			for (int i = 0; i < 5; i++){
 				for (int j = 0; j < 3; j++){
 					float jpos[3];
@@ -588,45 +617,128 @@ void main()
 				}
 			}
 			cv::imshow("groundtruth", cam_color);
+			*/
 		}
 		
 		
 		if (savegroundtruth_enable == true){
 
 			//data
-			for (int i = 0; i < width; i++)
-			for (int j = 0; j < height; j++)
-				cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
-
-			char filenamed[200];
-			sprintf(filenamed, "save/cnn/test/data/depth-%07u.png", camera._frame);
-			cv::imwrite(filenamed, cam_depth16);
-
-			//label
-			FILE* fp;
-			char filenamel[200];
-			sprintf(filenamel, "save/cnn/test/label/label.csv");
-			fp = fopen(filenamel, "a");
-
-			char str[100];
-
-			for (int i = 0; i < 5; i++)
-			for (int j = 0; j < 3; j++){
-				float jpos[3];
-				handgenerator.hand.GetJointPosition(i, j, jpos);
 			
-				for (int k = 0; k < 3;k++)
-					jpos[k] = com_hand[k] - jpos[k];
+			//for (int i = 0; i < width; i++)
+			//for (int j = 0; j < height; j++)
+			//	cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
 
-				if (i==4 & j==2)
-					sprintf(str, "%.2f,%.2f,%.2f\n", jpos[0], jpos[1], jpos[2]);
-				else
-					sprintf(str, "%.2f,%.2f,%.2f,", jpos[0], jpos[1], jpos[2]);
+			//char filenamed[200];
+			//sprintf(filenamed, "save/cnn26D/test/data/depth-%07u.png", camera._frame);
+			//cv::imwrite(filenamed, cam_depth16);
+			
+			char filenamec[200];
+			sprintf(filenamec, "save/cnn26D/test/data/color-%07u.png", camera._frame);
+			cv::imwrite(filenamec, cam_color);
 
-				fputs(str, fp);
+			//label (joints position)
+			/*
+			{
+				FILE* fp;
+				char filenamel[200];
+				sprintf(filenamel, "save/cnn/test/label/label.csv");
+				fp = fopen(filenamel, "a");
+
+				char str[100];
+
+				for (int i = 0; i < 5; i++)
+				for (int j = 0; j < 3; j++){
+					float jpos[3];
+					handgenerator.hand.GetJointPosition(i, j, jpos);
+
+					for (int k = 0; k < 3; k++)
+						jpos[k] = com_hand[k] - jpos[k];
+
+					if (i == 4 & j == 2)
+						sprintf(str, "%.2f,%.2f,%.2f\n", jpos[0], jpos[1], jpos[2]);
+					else
+						sprintf(str, "%.2f,%.2f,%.2f,", jpos[0], jpos[1], jpos[2]);
+
+					fputs(str, fp);
+				}
+				fclose(fp);
 			}
+			*/
+			//label (23D angle)
+			/*
+			{
+				FILE* fp;
+				char filenamel[200];
+				sprintf(filenamel, "save/cnn23D/train/label/label23D.csv");
+				fp = fopen(filenamel, "a");
 
-			fclose(fp);
+				char str[100];
+
+				float jpos[23];
+				for (int i = 0; i < 3;i++)
+					jpos[i]= handgenerator._posesetgenerator._trackbar.wval[i+3];
+				
+				for (int i = 0; i < 5;i++){
+					jpos[3 + 4 * i + 0] = handgenerator._posesetgenerator._trackbar.fval[3 * i+0][0];
+					jpos[3 + 4 * i + 1] = handgenerator._posesetgenerator._trackbar.fval[3 * i+0][2];
+					jpos[3 + 4 * i + 2] = handgenerator._posesetgenerator._trackbar.fval[3 * i+1][0];
+					jpos[3 + 4 * i + 3] = handgenerator._posesetgenerator._trackbar.fval[3 * i+2][0];
+				}
+				for (int i = 0; i < 23; i++)
+				{
+
+					if (i == 22)
+						sprintf(str, "%.2f\n", jpos[i]);
+					else
+						sprintf(str, "%.2f,", jpos[i]);
+
+					fputs(str, fp);
+				}
+				fclose(fp);
+			}
+			*/
+
+			//label (26D pose)
+			/*
+			{
+				FILE* fp;
+				char filenamel[200];
+				sprintf(filenamel, "save/cnn26D/train/label/label26D.csv");
+				fp = fopen(filenamel, "a");
+
+				char str[100];
+
+				float jpos[26];
+
+				//wt
+				for (int i = 0; i < 3; i++)
+					jpos[i] = handgenerator._posesetgenerator._trackbar.wval[i] - com_hand[i];
+				//wr
+				for (int i = 3; i < 6; i++)
+					jpos[i] = handgenerator._posesetgenerator._trackbar.wval[i];
+
+				//f
+				for (int i = 0; i < 5; i++){
+					jpos[6 + 4 * i + 0] = handgenerator._posesetgenerator._trackbar.fval[3 * i + 0][0];
+					jpos[6 + 4 * i + 1] = handgenerator._posesetgenerator._trackbar.fval[3 * i + 0][2];
+					jpos[6 + 4 * i + 2] = handgenerator._posesetgenerator._trackbar.fval[3 * i + 1][0];
+					jpos[6 + 4 * i + 3] = handgenerator._posesetgenerator._trackbar.fval[3 * i + 2][0];
+				}
+				for (int i = 0; i < 26; i++)
+				{
+
+					if (i == 25)
+						sprintf(str, "%.2f\n", jpos[i]);
+					else
+						sprintf(str, "%.2f,", jpos[i]);
+
+					fputs(str, fp);
+				}
+				fclose(fp);
+			}
+			*/
+			
 
 		}
 #pragma endregion
@@ -634,6 +746,8 @@ void main()
 #pragma region get cnn result
 		if (showcnnresult_enable == true)
 		{
+			//45D
+			/*
 			float cnnresult[5 * 3 * 3];
 			mmf.receiveData();
 			mmf.getLabel(cnnresult);
@@ -642,7 +756,7 @@ void main()
 			cv::Mat cmat;
 			camera.getCalibrationMatrix(cmat);
 
-			//printf("com:%f %f %f\n", com_hand[0], com_hand[1], com_hand[2]);
+			int color[5][3] = { { 255, 0, 0 }, { 0, 255, 0 }, { 0, 0, 255 }, { 255, 255, 0 }, { 0, 255, 255 } };
 			for (int i = 0; i < 15; i++)
 			{
 				float x = com_hand[0] - cnnresult[3 * i + 0];
@@ -657,10 +771,42 @@ void main()
 
 				//printf("p[%d]: x:%f y:%f z:%f\n", i, cnnresult[3 * i + 0], cnnresult[3 * i + 1], cnnresult[3 * i + 2]);
 				//printf("[%d]: x_:%f y_:%f\n",i, x_, y_);
-				cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(255, 0, 0), 5, 8, 0);
+	
+				cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(color[i / 3][0], color[i / 3][1], color[i / 3][2]), 5, 8, 0);
 
 			}
 			cv::imshow("predicted", cam_color);
+			*/
+
+			//26D
+			float cnnresult[26];
+			mmf.receiveData();
+			mmf.getLabel(cnnresult);
+
+			//visualize cnnresult
+			float solp[26];
+			for (int i = 0; i < 26; i++)
+				solp[i] = cnnresult[i];
+			solp[0] += com_hand[0]; solp[1] -= com_hand[1];	solp[2] += com_hand[2];
+
+			printf("t: %.2f %.2f %.2f\n", solp[0], solp[1], solp[2]);
+			printf("r: %.2f %.2f %.2f\n", solp[3], solp[4], solp[5]);
+			for (int i = 0; i < 5; i++)
+				printf("f[%d]: %.2f %.2f %.2f %.2f\n",i,solp[6 + 4 * i], solp[7 + 4 * i], solp[8 + 4 * i], solp[9 + 4 * i]);
+
+
+			handgenerator.run_setTbarFromResult(solp);
+			handgenerator._trackbar.run();
+			handgenerator.run_gui2hand("color");
+			glFinish();
+
+			cv::Mat model_color;
+			glrenderer.getOrigImage(model_color, "color");
+			cv::imshow("cnnresult", model_color);
+
+			cv::Mat fimg;
+			cv::addWeighted(cam_color, 0.3, model_color, 0.9, 0, fimg);
+			cv::imshow("cnnresult2", fimg);
 		}
 
 
@@ -669,14 +815,20 @@ void main()
 
 #pragma region model fitting
 		
-		//pso.run(cam_color, cam_depth, "6D"); 
-		pso.run(cam_color, cam_depth, "26D");
+		//pso.run(cam_color, cam_depth, com_hand,"6D"); 
+		//pso.run(cam_color, cam_depth, com_hand,"26D");
+		//pso.run(cam_color, cam_depth,com_hand, "hybrid");
 
+		if (cv::waitKey(1) == 'o')
+			pso.run(cam_color, cam_depth, com_hand, "26D");
+
+		
 #pragma endregion
 
 
 #pragma region gui test	
-/*
+
+	/*
 		{
 			//set track bar from pso result
 			
@@ -701,12 +853,12 @@ void main()
 			//run gui
 			if (sendresultimg_enable==true)
 			{
-				handgenerator.run_trackbar();
+				handgenerator._trackbar.run();
 				handgenerator.run_gui("depth");
 
 				cv::Mat model_depth;
 				glrenderer.getOrigImage(model_depth, "depth");
-				//cv::imshow("manual", model_depth);
+				cv::imshow("manual", model_depth);
 				//cvMoveWindow("manual", 1000, 0);
 
 				if (cv::waitKey(1) == 's')
@@ -759,10 +911,8 @@ void main()
 			//cv::imshow("difmanual", difdepth8u);
 			//cv::waitKey(1);
 		}
-*/		
+	*/
 		
-		
-	
 #pragma endregion
 
 

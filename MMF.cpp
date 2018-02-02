@@ -6,7 +6,7 @@ MMF::MMF(int w, int h){
 	height = h;
 
 	DATA_LEN = width*height*sizeof(float); //how to do this automatically?
-	DATA_LEN2 = 5 * 3 * 3;
+	DATA_LEN2 = 26;// 5 * 3 * 3;
 	_cnnimg = cv::Mat(height, width, CV_32FC1);
 
 	//char memoryname[1024];
@@ -114,6 +114,8 @@ void MMF::getLabel(float* out)
 {
 	for (int i = 0; i < DATA_LEN2; i++)
 		out[i] = DL_result[i];
+
+	
 		//out.push_back(i);
 		//out.push_back(DL_result[i]);
 

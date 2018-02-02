@@ -133,7 +133,17 @@ public:
 	**/
 	void GetJointPos(int jn, int &pc);
 
+	/**
+	* \brief get joints declared as 'joints'
+	* \fi: finger index
+	* \ji: joint index
+	**/
 	void GetJointPosition(int fi, int ji, float* out);
+	
+	/**
+	* \brief get position of all positions.
+	**/
+	void GetJointAllPosition(std::vector<float>* out);
 
 	/**
 	*	\brief Gets the name of the joint

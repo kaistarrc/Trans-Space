@@ -40,12 +40,12 @@ public:
 		//color read
 		
 		char filename[200];
-		sprintf(filename, "frames/color-%07u.png", framein);
+		sprintf(filename, "save/cnn26D/test/data/color-%07u.png", framein);
 		rgb = cv::imread(filename, 1);
 		
 		//depth read
 		
-		sprintf(filename, "frames/depth-%07u.png",  framein);
+		sprintf(filename, "save/cnn26D/test/data/depth-%07u.png",  framein);
 		depth = cv::imread(filename, 2);	
 		//sprintf(filename, "save/cnn/train/data/depth-%07u.png", framein);
 		//depth = cv::imread(filename, 2);

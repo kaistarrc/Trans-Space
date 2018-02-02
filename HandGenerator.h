@@ -5,28 +5,8 @@
 #define WR(x) std::cout << x << std::flush
 #define WRL(x) std::cout << x << std::endl
 
-const float bar_range = 100;
+const float bar_range = 255.0;// 100;
 
-
-int poseidx = 0;
-
-//--move finger--//
-const int controlDim = 5;
-//const int maxNumPose = 3125; //train
-//const int posestep = 5; //train
-
-const int maxNumPose = 1024; //test
-const int posestep=4; //test
-//--move finger--//
-
-//--move wrist--//
-//const int controlDim = 3;
-//const int maxNumPose = 5832; //train
-//const int posestep = 18; //train
-//
-////const int maxNumPose = 1000; //test
-////const int posestep=10; //test
-//--move wrist--//
 
 
 class HandGenerator{
@@ -61,17 +41,16 @@ class HandGenerator{
 				fid_tb = 0;
 				jid_tb = 0;
 
-				//init wval_tb&fval_tb
-				wval_tb[0] = 50;//50
-				wval_tb[1] = 20;//30
-				wval_tb[2] = 50;//84;
-				wval_tb[3] = 75;
-				wval_tb[4] = 50;
-				wval_tb[5] = 50;
-
+				
+				wval_tb[0] = 127;// 50;
+				wval_tb[1] = 51;// 20;
+				wval_tb[2] = 127;// 50;
+				wval_tb[3] = 191;// 75;
+				wval_tb[4] = 127;// 50;
+				wval_tb[5] = 127;// 50;
 				for (int i = 0; i < 15;i++)
 				for (int j = 0; j < 3; j++)
-					fval_tb[i][j] = 50;
+					fval_tb[i][j] = 127;// 50;
 
 				//init wval&fval
 				wval[0] = -100 + (wval_tb[0] / bar_range) * 200.0;
@@ -84,9 +63,12 @@ class HandGenerator{
 				for (int i = 0; i < 15; i++)
 				for (int j = 0; j < 3; j++)
 					fval[i][j] = -180 + (fval_tb[i][j] / bar_range) * 360.0;
+
+
 			}
 
-			
+			//wval_tb -> wval
+			//fval_tb -> fval
 			void run(){
 				cvCreateTrackbar("tx", "wrist", &wval_tb[0], bar_range, NULL);
 				cvCreateTrackbar("ty", "wrist", &wval_tb[1], bar_range, NULL);
@@ -165,8 +147,146 @@ class HandGenerator{
 	};
 
 
+	class PosesetGenerator
+	{
+	public:
+		Trackbar _trackbar;
+
+		PosesetGenerator(){
+		}
+	
+
+		//26,3
+		//dim=the number of hand parameter(26) , controldim=the number of control paraemter for animation.
+		PosesetGenerator(int dim, int controldim){
+			_dim = dim;
+			_trackbar = Trackbar(dim);
+
+			classid = 0;
+			poseidx = 0;
+			_controlDim = controldim;
+			ani_idx = new int[controldim];
+			posemin = new float[controldim];
+
+			posestep = new float[controldim];
+			posenum = new int[controldim];
+
+			////////////////////////////////////
+			//--hard coding for manual input--//
+
+			posenum_class = 4 * 4 * 4;
+			for (int i = 0; i < 3; i++){
+				posestep[i] = 8; //10: train , 8: test
+				posenum[i] = 4;//6: train, 4: test
+
+			}
+			
+			//--hard coding for manual input--//
+			////////////////////////////////////
+
+			maxNumPose = posenum_class * dim;
+
+			//set cnn class to 0.
+			_trackbar.load(0);
+			_trackbar.run();
+
+			////////////////////////////////////
+			//--hard coding for manual input--//
+			posemin[0] = _trackbar.wval[3] - posestep[0] * posenum[0] / 2;
+			posemin[1] = _trackbar.wval[4] - posestep[1] * posenum[1] / 2;
+			posemin[2] = _trackbar.wval[5] - posestep[2] * posenum[2] / 2;
+			//--hard coding for manual input--//
+			////////////////////////////////////
+		}
+
+		int run_animation_class(){
+
+			//load trackbar value, and convert it to hand parameter value.
+			if (poseidx == (posenum_class* (classid + 1))){
+				classid++;
+
+				_trackbar.load(classid);
+				_trackbar.run();
+
+				////////////////////////////////////
+				//--hard coding for manual input--//
+				posemin[0] = _trackbar.wval[3] - posestep[0] * posenum[0] / 2;
+				posemin[1] = _trackbar.wval[4] - posestep[1] * posenum[1] / 2;
+				posemin[2] = _trackbar.wval[5] - posestep[2] * posenum[2] / 2;
+				////////////////////////////////////
+				//--hard coding for manual input--//
+			}
+
+
+			//
+			int poseidx2 = poseidx - classid*posenum[0] * posenum[1] * posenum[2];
+
+			for (int i = 0; i < _controlDim - 1; i++){
+
+				ani_idx[i] = poseidx2 / pow(posenum[i], (_controlDim - 1) - i);
+				poseidx2 -= pow(posenum[i], (_controlDim - 1) - i)*ani_idx[i];
+			}
+			ani_idx[_controlDim - 1] = poseidx2;
+
+			////////////////////////////////////
+			//--hard coding for manual input--//
+			_trackbar.wval[3] = posemin[0] + ani_idx[0] * (posestep[0]);
+			_trackbar.wval[4] = posemin[1] + ani_idx[1] * (posestep[1]);
+			_trackbar.wval[5] = posemin[2] + ani_idx[2] * (posestep[2]);
+			////////////////////////////////////
+			//--hard coding for manual input--//
+
+			poseidx++;
+			
+
+			if (poseidx == (maxNumPose + 1))
+				return -1;
+
+			return 0;
+		}
+
+		int test(){
+			if (cv::waitKey(1) == 'p'){
+					
+				classid++;
+				if (classid == 26)
+					classid = 0;
+
+				printf("classid:%d\n", classid);
+				_trackbar.load(classid);
+				_trackbar.run();
+
+				//_trackbar.wval[3] += 0;
+				//_trackbar.fval[0][0] += 30;
+
+			}
+			
+			return 0;
+		}
+
+		int classid;
+
+	private:
+		
+		int _dim;
+
+		int poseidx;
+		int _controlDim;
+		int* ani_idx;
+		float* posemin;
+
+		int maxNumPose;
+		float* posestep;
+		int* posenum;
+		int posenum_class;
+
+	};
+	
+
+
 public:
 	Trackbar _trackbar;
+	PosesetGenerator _posesetgenerator;
 	Hand hand;
 
 	HandGenerator(){
@@ -177,7 +297,6 @@ public:
 
 		handParamNum = hg.handParamNum;
 		
-
 		//init trackbar
 		_trackbar = Trackbar(handParamNum);
 		hand_param = new float[handParamNum];
@@ -192,30 +311,9 @@ public:
 		}
 		WRL("hand OK");
 
-
-		//hand.initialRun();
-		
-		//trackbar initialization
-		/*
-		WRL("Init start");
-		
-		hg.CopyTo(&hp);
-
-		bool hand_success = hand.Init(hp);
-		if (!hand_success)
-		{
-			WRL("ERROR: Hand loading was not successfull, please check the parameters and/or your system");
-			return;
-		}
-		WRL("hand OK");
-		
-		std::vector<int> temp;
-		ComputePosition(&positions, temp, 0);
-		WRL("positions OK");
-
-		ComputeRotation(&rotations);
-		WRL("rotations OK");
-		*/
+		//pose generator for getting training/test set.
+		_posesetgenerator=  PosesetGenerator(handParamNum, 3);
+	
 	}
 
 	void run_setTbarFromResult(float* hsol)
@@ -234,67 +332,6 @@ public:
 			_trackbar.fval_tb[3 * i + 1][0] = (hsol[8 + 4 * i] + 180)*(bar_range / 360.0);
 			_trackbar.fval_tb[3 * i + 2][0] = (hsol[9 + 4 * i] + 180)*(bar_range / 360.0);
 		}
-
-	}
-
-	void run_trackbar(){
-		_trackbar.run();
-	}
-
-	int run_animation(){
-		
-		//////--move finger--//////	
-		int ani_idx[controlDim];
-		int poseidx2 = poseidx;
-
-		for (int i = 0; i < controlDim-1; i++){
-			ani_idx[i] = poseidx2 / pow(posestep, (controlDim - 1)-i);
-			poseidx2 -= pow(posestep, (controlDim - 1) - i)*ani_idx[i];
-		}
-		ani_idx[controlDim - 1] = poseidx2;
-
-		for (int i = 0; i < controlDim; i++){
-			//_trackbar.fval[3 * i][0] = ani_idx[i] * (100 / posestep); //train
-			_trackbar.fval[3 * i][0] = ani_idx[i] * (124 / posestep); //test
-			//printf("fval:%f\n", _trackbar.fval[3 * i][0]);
-		}
-		poseidx++;
-
-		if (poseidx == (maxNumPose+1))
-			return -1;
-
-		//printf("%d %d %d %d %d\n",ani_idx[0], ani_idx[1], ani_idx[2], ani_idx[3], ani_idx[4]);
-
-		return 0;
-		
-
-//////--rotate wrist--//////
-		/*
-		//make animation index
-		int ani_idx[controlDim];
-		int poseidx2 = poseidx;
-
-		ani_idx[0] = poseidx2 / (posestep*posestep); 
-		poseidx2 -= (posestep*posestep) * ani_idx[0];
-
-		ani_idx[1] = poseidx2 / posestep;
-		poseidx2 -= posestep * ani_idx[1];
-
-		ani_idx[2] = poseidx2;
-
-		//put hand parameter.
-
-		_trackbar.wval[3] = ani_idx[0] * (180/posestep); 
-		_trackbar.wval[4] = ani_idx[1] * (180/posestep);
-		_trackbar.wval[5] = ani_idx[2] * (180/posestep);
-				
-		poseidx++;
-
-		if (poseidx == maxNumPose)
-			return -1;
-
-		return 0;
-		*/
 	}
 
 	void save_trackbar(){
@@ -310,10 +347,11 @@ public:
 		_trackbar.load(cid);
 
 	}
-	void run_gui(std::string type){
+	void run_gui2hand(std::string type){
 
 		for (int i = 0; i < 5;i++)
 		for (int j = 0; j < 3;j++) {
+
 			float tx = _trackbar.wval[0];
 			float ty = _trackbar.wval[1];
 			float tz = _trackbar.wval[2];
@@ -324,11 +362,30 @@ public:
 			float fx = _trackbar.fval[i*3+j][0];
 			float fy = _trackbar.fval[i*3+j][1];
 			float fz = _trackbar.fval[i*3+j][2];
-
+		
 			//printf("[%d][%d]=%.2f %.2f %.2f\n", i, j, fx, fy, fz);
 			renderGui(tx, ty, tz, rx, ry, rz, fx, fy, fz, i*3+j, type);
 		}
+	}
+	void run_posegenerator2hand(std::string type){
 
+		for (int i = 0; i < 5; i++)
+		for (int j = 0; j < 3; j++) {
+
+			float tx = _posesetgenerator._trackbar.wval[0];
+			float ty = _posesetgenerator._trackbar.wval[1];
+			float tz = _posesetgenerator._trackbar.wval[2];
+			float rx = _posesetgenerator._trackbar.wval[3];
+			float ry = _posesetgenerator._trackbar.wval[4];
+			float rz = _posesetgenerator._trackbar.wval[5];
+
+			float fx = _posesetgenerator._trackbar.fval[i * 3 + j][0];
+			float fy = _posesetgenerator._trackbar.fval[i * 3 + j][1];
+			float fz = _posesetgenerator._trackbar.fval[i * 3 + j][2];
+
+			//printf("[%d][%d]=%.2f %.2f %.2f\n", i, j, fx, fy, fz);
+			renderGui(tx, ty, tz, rx, ry, rz, fx, fy, fz, i * 3 + j, type);
+		}
 	}
 
 	void setHandPose(float* in)
@@ -379,11 +436,11 @@ private:
 	
 	void setPose(float* in){
 		
-		float f0 = -180 + (_trackbar.fval_tb[0][1] / 100.0) * 180.0;
-		float f1 = -180 + (_trackbar.fval_tb[1][1] / 100.0) * 180.0;
-		float f2 = -180 + (_trackbar.fval_tb[2][1] / 100.0) * 180.0;
-		float f3 = -180 + (_trackbar.fval_tb[3][1] / 100.0) * 180.0;
-		float f4 = -180 + (_trackbar.fval_tb[4][1] / 100.0) * 180.0;
+		float f0 = -180 + (_trackbar.fval_tb[0][1] / bar_range) * 180.0;
+		float f1 = -180 + (_trackbar.fval_tb[1][1] / bar_range) * 180.0;
+		float f2 = -180 + (_trackbar.fval_tb[2][1] / bar_range) * 180.0;
+		float f3 = -180 + (_trackbar.fval_tb[3][1] / bar_range) * 180.0;
+		float f4 = -180 + (_trackbar.fval_tb[4][1] / bar_range) * 180.0;
 		
 		hand.SetJoint(0, 0, in[6], 0, in[7]);
 		hand.SetJoint(1, 0, in[8], 0, 0);
@@ -401,7 +458,8 @@ private:
 		hand.SetJoint(10, 0, in[20], 0, 0);
 		hand.SetJoint(11, 0, in[21], 0, 0);
 
-		hand.SetJoint(12, 0, in[22], -10, in[23]);
+		//hand.SetJoint(12, 0, in[22], 0, in[23]);
+		hand.SetJoint(12, 0, in[22], -30, in[23]);
 		hand.SetJoint(13, 0, in[24], 0, 0);
 		hand.SetJoint(14, 0, in[25], 0, 0);
 

@@ -212,9 +212,9 @@ void GLRenderer::getColorTexture(cv::Mat& out)
 	for (int i = 0; i < width_fb; i++)
 	for (int j = 0; j < height_fb; j++)
 	{
-		rgb.at<unsigned char>(j, 3 * i + 0) = 255 * img1.at<float>(j, 4 * i + 2);
-		rgb.at<unsigned char>(j, 3 * i + 1) = 255 * img1.at<float>(j, 4 * i + 1);
-		rgb.at<unsigned char>(j, 3 * i + 2) = 255 * img1.at<float>(j, 4 * i + 0);
+		rgb.at<unsigned char>(j, 3 * i + 0) =  255*img1.at<float>(j, 4 * i + 2);
+		rgb.at<unsigned char>(j, 3 * i + 1) =  255*img1.at<float>(j, 4 * i + 1);
+		rgb.at<unsigned char>(j, 3 * i + 2) =  255*img1.at<float>(j, 4 * i + 0);
 	}
 
 	out = rgb;

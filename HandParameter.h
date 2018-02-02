@@ -7,18 +7,18 @@ const float boundary_max[2][26] = {
 
 	-30, -70, -90, -90,  //0: stretch
 	-90, -20, -90, -90,
-	-90, -20, -90, -90,
-	-90, -20, -90, -90,
+	-90, -16, -90, -90,
+	-90, -10, -90, -90,
 	-90, -20, -90, -90 },
 
 	{ 100, 100, 300,
 	360, 360, 360,
 
 	50, 20, 0, 0,
-	0, 20, 0, 0,		//90: bend
-	0, 20, 0, 0,
-	0, 20, 0, 0,
-	0, 30, 0, 0 }
+	0, 0, 0, 0,		//90: bend
+	0, 5, 0, 0,
+	0, 10, 0, 0,
+	0, 20, 0, 0 }
 };
 
 struct HandParameters
@@ -141,11 +141,12 @@ struct HandParameters
 
 		hp.setup_model_path_full = "data/hand_model_full.dae";
 
+		//hp.setup_model_path_low = "data/hand0201.dae";
 		hp.setup_model_path_low = "data/20180126HandModification_highpoly.dae";
+
+
 		//hp.setup_model_path_low = "data/20180126HandModification.dae";
 		//hp.setup_model_path_low = "data/HandModification3.dae";
-
-
 		//hp.setup_model_path_low = "data/LeftHand3.dae";
 		//hp.setup_model_path_low = "data/leapmotionorig.dae";
 		//hp.setup_model_path_low = "data/righthand.dae";

@@ -26,7 +26,15 @@ public:
 			realcamera = new RealSenseCVWrapper(w, h);
 		else if (camtype.compare("playcamera") == 0)
 			playcamera = new PlayCamera(w, h);
-		else if (camtype.compare("glcamera") == 0){
+		else if (camtype.compare("glcamera_gui") == 0){
+			handgenerator = hg;
+			glcamera = gr;
+		}
+		else if (camtype.compare("glcamera_dataset") == 0){
+			handgenerator = hg;
+			glcamera = gr;
+		}
+		else if (camtype.compare("glcamera_test") == 0){
 			handgenerator = hg;
 			glcamera = gr;
 		}
@@ -65,22 +73,28 @@ public:
 				printf("frame:%d\n", _frame);
 			}
 			else if (key == 'x'){
-				_frame--;
+				//_frame--;
+				_frame += 4 * 4 * 4 - 10;
 				printf("frame:%d\n", _frame);
 			}
 
 			
 		}
-		else if (_camtype.compare("glcamera") == 0){
-			//handgenerator->run_trackbar();
+		else if (_camtype.compare("glcamera_gui") == 0){
+			handgenerator->_trackbar.run();// run_trackbar();
 
-			if (handgenerator->run_animation() == -1)
-				return false;
-			
 			if (cv::waitKey(1) == 's')
 				handgenerator->save_trackbar();
 			if (cv::waitKey(1) == 'l')
 				handgenerator->load_trackbar();
+		}
+		else if (_camtype.compare("glcamera_dataset") == 0){
+			if (handgenerator->_posesetgenerator.run_animation_class() == -1)
+				return false;
+		}
+		else if (_camtype.compare("glcamera_test") == 0){
+			if (handgenerator->_posesetgenerator.test() == -1)
+				return false;
 		}
 
 		return true;
@@ -99,12 +113,21 @@ public:
 				cam_depth.at<float>(j, i) = cam_depth16.at<ushort>(j, i);
 		}
 
-		else if (_camtype.compare("glcamera") == 0){
-			handgenerator->run_gui("depth");
+		else if (_camtype.compare("glcamera_gui") == 0){
+			handgenerator->run_gui2hand("depth");
 			glFinish();
 			glcamera->getOrigImage(cam_depth, "depth");
 		}
-
+		else if (_camtype.compare("glcamera_dataset") == 0){
+			handgenerator->run_posegenerator2hand("depth");
+			glFinish();
+			glcamera->getOrigImage(cam_depth, "depth");
+		}
+		else if (_camtype.compare("glcamera_test") == 0){
+			handgenerator->run_posegenerator2hand("depth");
+			glFinish();
+			glcamera->getOrigImage(cam_depth, "depth");
+		}
 		//cv::flip(cam_depth,cam_depth, 1);
 		cam_depth.copyTo(out);
 		
@@ -116,19 +139,27 @@ public:
 			realcamera->getMappedColorBuffer(cam_color);
 		else if (_camtype.compare("playcamera") == 0)
 			playcamera->getColorBuffer(cam_color);
-		else if (_camtype.compare("glcamera") == 0){
-			handgenerator->run_gui("color");
+		else if (_camtype.compare("glcamera_gui") == 0){
+			handgenerator->run_gui2hand("color");
 			glFinish();
 			glcamera->getOrigImage(cam_color, "color");
 		}
-
+		else if (_camtype.compare("glcamera_dataset") == 0){
+			handgenerator->run_posegenerator2hand("color");
+			glFinish();
+			glcamera->getOrigImage(cam_color, "color");
+		}
+		else if (_camtype.compare("glcamera_test") == 0){
+			handgenerator->run_posegenerator2hand("color");
+			glFinish();
+			glcamera->getOrigImage(cam_color, "color");
+		}
 		//cv::flip(cam_color, cam_color, 1);
 		cam_color.copyTo(out);
 	}
 
 	void recordFrames(){
 		
-
 		{
 			for (int i = 0; i < width;i++)
 			for (int j = 0; j < height; j++)
@@ -144,9 +175,8 @@ public:
 			char filename[200];
 			sprintf(filename, "frames/color-%07u.png", _frame);
 			cv::imwrite(filename, cam_color);
-
 		}
-		
+
 	}
 
 	void getCalibrationMatrix(cv::Mat& out){
@@ -162,7 +192,7 @@ public:
 		//else if (_camtype.compare("playcamera") == 0)
 		//	printf("not implemented yet\n");
 
-		_frame++;
+		//_frame++;
 	}
 	
 

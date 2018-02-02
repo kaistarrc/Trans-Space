@@ -233,7 +233,7 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 	{
 		int BoneIndex = 0;
 		std::string BoneName(input_scene->mMeshes[0]->mBones[i]->mName.data);
-		//printf("[%d]bonename:%s\n", i,BoneName);
+		printf("[%d]bonename:%s\n", i,BoneName);
 		if (bone_map.find(BoneName) == bone_map.end())
 		{
 			// Allocate an index for a new bone
@@ -1021,22 +1021,15 @@ void Hand::SetJoint(int jn, int pc, float x, float y, float z)
 
 void Hand::GetJointPosition(int fi, int ji, float* out)
 {
-	/*
-	int BoneIndex = ji;
-
-	Matrix4f mvp_t = matrix_modelViewProj.Transpose();
-	bone_data[BoneIndex].pos_transformed = matrix_modelView*bone_data[BoneIndex].pos_transformed;
-	//bone_data[BoneIndex].pos_transformed =mvp_t*bone_data[BoneIndex].pos_transformed;
-
-	out[0] = bone_data[BoneIndex].pos_transformed.x;
-	out[1] = -bone_data[BoneIndex].pos_transformed.y;
-	out[2] = bone_data[BoneIndex].pos_transformed.z;
-	*/
+	
 	
 	int jn = 3 * fi + ji;
 	assert(bone_map.find(joints[jn]) != bone_map.end());
 	int BoneIndex = bone_map[joints[jn]];
 
+	BoneIndex += 1;
+	printf("[%d]joints name:%s, boneindex:%d\n", jn,joints[jn], BoneIndex);
+
 	Matrix4f mvp_t = matrix_modelViewProj.Transpose();
 	bone_data[BoneIndex].pos_transformed = matrix_modelView*bone_data[BoneIndex].pos_transformed;
 	//bone_data[BoneIndex].pos_transformed =mvp_t*bone_data[BoneIndex].pos_transformed;
@@ -1044,9 +1037,29 @@ void Hand::GetJointPosition(int fi, int ji, float* out)
 	out[0] = bone_data[BoneIndex].pos_transformed.x;
 	out[1] = -bone_data[BoneIndex].pos_transformed.y;
 	out[2] = bone_data[BoneIndex].pos_transformed.z;
+}
+
+void Hand::GetJointAllPosition(std::vector<float>* out){
+
 	
+	for (int i = 0; i<bone_map.size(); i++)
+	{
+	
+		bone_data[i].pos_transformed = matrix_modelView*bone_data[i].pos_transformed;
+
+		float x = bone_data[i].pos_transformed.x;
+		float y = -bone_data[i].pos_transformed.y;
+		float z = bone_data[i].pos_transformed.z;
+
+		out->push_back(x);
+		out->push_back(y);
+		out->push_back(z);
+
+	}
 
 }
+
+
 
 void Hand::GetJoint(int jn, int pc, float &x, float &y, float &z)
 {

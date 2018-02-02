@@ -4,6 +4,7 @@
 #include "HandGenerator.h"
 #include "CostFunction.h"
 #include "HandParameter.h"
+#include "MMF.h"
 
 #include <opencv2/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -12,6 +13,8 @@
 #include <stdio.h>
 
 #include <random>
+
+
 
 //#include "common.h"
 
@@ -26,11 +29,13 @@ public:
 	cv::Mat gbest;
 	
 
-	PSO(int p_numX, int p_numY, int g_num, int dim,HandGenerator* renderer,GLRenderer& glrenderer,CostFunction& costFunct)
+	PSO(int p_numX, int p_numY, int g_num, int dim,
+		HandGenerator* renderer,GLRenderer& glrenderer,CostFunction& costFunct,MMF* mmf)
 	{
 		_renderer = renderer;
 		_costFunct = costFunct;
 		_glrenderer = glrenderer;
+		_mmf = mmf;
 		//_posespace = posespace;
 
 		//random
@@ -51,12 +56,14 @@ public:
 
 		position = cv::Mat(particle_num, dimension, CV_32FC1);
 		pbest = cv::Mat(particle_num, dimension, CV_32FC1);
+
 		gbest = cv::Mat(1, dimension, CV_32FC1);
-		gbest_partial[0] = cv::Mat(1, dimension, CV_32FC1);
-		gbest_partial[1] = cv::Mat(1, dimension, CV_32FC1);
+		gbest_part[0] = cv::Mat(1, dimension, CV_32FC1);
+		gbest_part[1] = cv::Mat(1, dimension, CV_32FC1);
 		gbest_pre = cv::Mat(1, dimension, CV_32FC1);
+		
 		pvel = cv::Mat(particle_num, dimension, CV_32FC1);
-		boundary = cv::Mat(2, dimension, CV_32FC1);
+		boundary_track = cv::Mat(2, dimension, CV_32FC1);
 		boundary_cnn = cv::Mat(2, dimension, CV_32FC1);
 		cost = cv::Mat(1, particle_num, CV_32FC1);//
 		cost_pbest = cv::Mat(1, particle_num, CV_32FC1);
@@ -68,7 +75,7 @@ public:
 		float w = weight[0] + weight[1];
 		weight[2] = 2 / (abs(2 - w - sqrt(w*w - 4 * w)));
 
-		initialRun();
+		initialize();
 
 	}
 
@@ -86,7 +93,7 @@ public:
 		return out;
 	}
 
-	void initialRun(){
+	void initialize(){
 
 #ifdef GYMODEL_WRIST_DEF
 		float p[hand_dof] = { 0, 112, 300,
@@ -100,8 +107,8 @@ public:
 			0, 4, 0, 0 };
 #else
 		std::vector<float> h_26d;
-		h_26d.push_back(5); h_26d.push_back(5); h_26d.push_back(20);
-		h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10);
+		h_26d.push_back(0); h_26d.push_back(-40); h_26d.push_back(250);
+		h_26d.push_back(60); h_26d.push_back(-18); h_26d.push_back(-20);
 		h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10);
 		h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10);
 		h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10);
@@ -127,32 +134,70 @@ public:
 			out[j] = gbest_pre.at<float>(0, j);
 
 	}
-	void run(cv::Mat cam_color,cv::Mat cam_depth, std::string type){
 
-		
+	
+	void run(cv::Mat cam_color,cv::Mat cam_depth,float* com_hand, std::string type){
+
+		hitNumber = 0;
 
 		cv::Mat cam_depth_track;
-		cv::resize(cam_depth, cam_depth_track, cv::Size(128, 128), 0, 0, CV_INTER_NN);
-		
+		cv::resize(cam_depth, cam_depth_track, cv::Size(128, 128), 0, 0, CV_INTER_NN);		
 		_costFunct.transferObservation2GPU(cam_depth_track);
 
+
+#pragma region set pose_cnn / boundary_cnn 
+		if (type.compare("hybrid") == 0){
+			//from trained cnn.
+			/*
+			_mmf->receiveData();
+			_mmf->getLabel(&pose_cnn.at<float>(0, 0));
+			pose_cnn.at<float>(0, 0) += com_hand[0];
+			pose_cnn.at<float>(0, 1) -= com_hand[1];
+			pose_cnn.at<float>(0, 2) += com_hand[2];
+			*/
+
+			//from manually controled value.
+			for (int i = 0; i < 6; i++)
+				pose_cnn.at<float>(0, i) = _renderer->_posesetgenerator._trackbar.wval[i];
+
+			for (int i = 0; i < 5; i++)
+			{
+				pose_cnn.at<float>(0, 6 + 4 * i + 0) = _renderer->_posesetgenerator._trackbar.fval[3 * i + 0][0];
+				pose_cnn.at<float>(0, 6 + 4 * i + 1) = _renderer->_posesetgenerator._trackbar.fval[3 * i + 0][2];
+				pose_cnn.at<float>(0, 6 + 4 * i + 2) = _renderer->_posesetgenerator._trackbar.fval[3 * i + 1][0];
+				pose_cnn.at<float>(0, 6 + 4 * i + 3) = _renderer->_posesetgenerator._trackbar.fval[3 * i + 2][0];
+			}
+
+			//move cnn pose beside true pose 
+			for (int i = 0; i < 3;i++)
+				pose_cnn.at<float>(0, i) += 30; 
+
+			//show model
+			showObModel("cnn",cam_color,cam_depth, &pose_cnn.at<float>(0, 0));
+
+			//set boundary cnn
+			setBoundary_cnn();
+		}
+#pragma endregion
 		
 		initializeVelocity();
 		initializeCost();
 
 		setBoundary_track(); //check (around gbest_param_pre)
-
-		cv::Mat aa = boundary;
-		cv::waitKey(1);
+		
 
 		if (type.compare("6D")==0){
-			initializePalm(0, particle_num, gbest_pre, boundary);
+			initializePalm(0, particle_num, gbest_pre, boundary_track);
 		}
 		else if (type.compare("26D")==0){
 			//initializeFingers(0, 20, gbest_pre);
 			//initializePalm(20, 26, gbest_pre, boundary);
 			//initializeAll(26, particle_num, gbest_pre, boundary);
-			initializeAll(0, particle_num, gbest_pre, boundary);
+			initializeAll(0, particle_num, gbest_pre, boundary_track);
+		}
+		else if (type.compare("hybrid") == 0){
+			initializeAll(0, particle_num / 2, gbest_pre, boundary_track);
+			initializeAll(particle_num/2, particle_num, pose_cnn, boundary_cnn);
 		}
 
 		
@@ -160,28 +205,55 @@ public:
 		calculatePbest(); 
 		calculateGbest(0, particle_num, gbest); 
 
-		showObModelParticles("initial");
+		//showObModelParticles("initial");
 		//cv::waitKey(1);
 		//cv::waitKey(1);
 		
 		
-		for (int i = 0; i < max_generation; i++){
+		for (int g = 0; g < max_generation; g++){
 			
-			calculateVelocity(0, particle_num, gbest, boundary);
-
-			if (type.compare("6D")==0)
-				updatePalm(0, particle_num, gbest, boundary);
-			else if (type.compare("26D")==0){
-				updateFingers(0, 20, gbest_pre, boundary);
-				updatePalm(20, 26, gbest_pre, boundary);
-				updateAll(26, particle_num);
+			showObModelParticles("during","save",g);
+	
+			if (type.compare("6D") == 0){
+				calculateVelocity(0, particle_num, gbest, boundary_track);
+				updatePalm(0, particle_num, gbest, boundary_track);
 			}
+			else if (type.compare("26D")==0){
+				calculateVelocity(0, particle_num, gbest, boundary_track);
+				/*
+				updateFingers(0, 20, gbest_pre, boundary_track);
+				updatePalm(20, 26, gbest_pre, boundary_track);
+				updateAll(26, particle_num,boundary_track);
+				*/
+				updateAll(0, particle_num, boundary_track);
+			}
+			else if (type.compare("hybrid") == 0){
+				/*
+				calculateVelocity(0, 20, gbest, boundary_track);
+				updateFingers(0, 10, gbest_pre, boundary_track);
+				updatePalm(10, 16, gbest_pre, boundary_track);
+				updateAll(16, 20,boundary_track);
+
+				calculateVelocity(20, particle_num, gbest, boundary_cnn);
+				updateAll(20, particle_num, boundary_cnn);
+				*/
+				calculateVelocity(0, particle_num/2, gbest, boundary_track);
+				updateAll(0, particle_num/2, boundary_track);
+
+				calculateVelocity(particle_num/2, particle_num, gbest, boundary_cnn);
+				updateAll(particle_num/2, particle_num, boundary_cnn);
+			}
+
+			
 			
 			
 			calculateCost();
 			calculatePbest();//ok
 			calculateGbest(0, particle_num, gbest);//ok
 			
+			
+			printf("[%d]hitnumber:%d\n", g, hitNumber);
+
 			//showObModelParticles("during");
 			//cv::moveWindow("during", 896, 0);
 			//cv::waitKey(1);
@@ -200,12 +272,21 @@ public:
 			//printf("gbest[%d]=%f\n", j, gbest.at<float>(0, j));
 		}
 		
+		//for (int i = 0; i < 5; i++)
+		//	printf("F[%d] %.2f %.2f %.2f %.2f\n", i, gbest.at<float>(0, 6 + 4 * i + 0), gbest.at<float>(0, 6 + 4 * i + 1), gbest.at<float>(0, 6 + 4 * i + 2), gbest.at<float>(0, 6 + 4 * i + 3));
+		
 
 		//visualize final solution
-		showDemo(cam_color,cam_depth);
+		//showDemo(cam_color,cam_depth);
+		showObModel("final",cam_color, cam_depth, &position.at<float>(0, 0));
 		
 		
-		
+		//line up
+		cv::moveWindow("cnn", 0, 0);
+		cv::moveWindow("cnn_dif", 640, 0);
+		cv::moveWindow("final", 0, 480);
+		cv::moveWindow("final_dif", 640, 480);
+		//cv::moveWindow("initial", 640 * 3, 0);
 	}
 
 private:
@@ -215,46 +296,40 @@ private:
 
 		for (int j = 0; j < dimension; j++){
 			if (j < 3){
-				boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 10;  //palm
-				boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 10;
+				boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 30;  //palm
+				boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 30;
 			}
 			else if (j >= 3 && j < fingerStartIdx){
-				boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 10;  //palm
-				boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 10;
+				boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 30;  //palm
+				boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 30;
 			}
 			else if (j >= fingerStartIdx){
 				if ((j - fingerStartIdx) % 4 == 1){
-					boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 5;
-					boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 5;
+					boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 5;
+					boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 5;
 				}
 				else{
-					boundary.at<float>(0, j) = gbest_pre.at<float>(0, j) - 20; //boundary_max[0][j];  //finger x
-					boundary.at<float>(1, j) = gbest_pre.at<float>(0, j) + 20; //boundary_max[1][j];
+					boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 20; //boundary_max[0][j];  //finger x
+					boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 20; //boundary_max[1][j];
 					//boundary.at<float>(j, 0) = gbest_pre.at<float>(j, 0) - 30;
 					//boundary.at<float>(j, 1) = gbest_pre.at<float>(j, 0) + 30;
 				}
 			}
 
 			//check limit of boundary
-			if (boundary.at<float>(0, j) < boundary_max[0][j])
-				boundary.at<float>(0, j) = boundary_max[0][j];
-			if (boundary.at<float>(1, j) > boundary_max[1][j])
-				boundary.at<float>(1, j) = boundary_max[1][j];
+			if (boundary_track.at<float>(0, j) < boundary_max[0][j])
+				boundary_track.at<float>(0, j) = boundary_max[0][j];
+			if (boundary_track.at<float>(1, j) > boundary_max[1][j])
+				boundary_track.at<float>(1, j) = boundary_max[1][j];
 		}
 	}
 
 	void setBoundary_cnn(){
 
 		for (int j = 0; j < dimension; j++){
-			if (j < 3){
-				boundary_cnn.at<float>(0, j) = gbest_pre.at<float>(0, j) - 10;  //palm
-				boundary_cnn.at<float>(1, j) = gbest_pre.at<float>(0, j) + 10;
-				//boundary_cnn.at<float>(j, 0) = pose_cnn.at<float>(j, 0) - 10;  //palm
-				//boundary_cnn.at<float>(j, 1) = pose_cnn.at<float>(j, 0) + 10;
-			}
-			else if (j >= 3 && j < fingerStartIdx){
-				boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 0.05;  //palm
-				boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 0.05;
+			if (j < fingerStartIdx){	
+				boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 30;  //palm
+				boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 30;
 			}
 			else if (j >= fingerStartIdx){
 				if ((j - fingerStartIdx) % 4 == 1){
@@ -262,16 +337,16 @@ private:
 					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 5;
 				}
 				else{
-					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 10;
-					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 10;
+					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 20;
+					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 20;
 				}
 			}
 
 			//check limit of boundary
-			if (boundary.at<float>(0, j) < boundary_max[0][j])
-				boundary.at<float>(0, j) = boundary_max[0][j];
-			if (boundary.at<float>(1, j) > boundary_max[1][j])
-				boundary.at<float>(1, j) = boundary_max[1][j];
+			if (boundary_cnn.at<float>(0, j) < boundary_max[0][j])
+				boundary_cnn.at<float>(0, j) = boundary_max[0][j];
+			if (boundary_cnn.at<float>(1, j) > boundary_max[1][j])
+				boundary_cnn.at<float>(1, j) = boundary_max[1][j];
 		}
 	}
 
@@ -282,13 +357,11 @@ private:
 		for (int j = 0; j < dimension; j++){
 			float b0 = b.at<float>(0, j);// boundary.at<float>(j, 0);
 			float b1 = b.at<float>(1, j);// boundary.at<float>(j, 1);
-			//float s = co.at<float>(j, 0);
 
 			if (i == end_p - 1)
 				position.at<float>(i, j) = p.at<float>(0, j);// gbest_pre.at<float>(j, 0);
 			else
 				position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
-			//position.at<float>(j, i) = frand_gaussian(p.at<float>(j, 0), s, b0, b1);
 		}
 	}
 
@@ -309,13 +382,13 @@ private:
 		}
 	}
 
-	void initializeFingers(int begin_p, int end_p, cv::Mat p){
+	void initializeFingers(int begin_p, int end_p, cv::Mat p,cv::Mat b){
 
 		for (int i = begin_p; i < end_p; i++)
 		for (int j = 0; j < dimension; j++)
 		{
-			float b0 = boundary.at<float>(0, j);
-			float b1 = boundary.at<float>(1, j);
+			float b0 = b.at<float>(0, j);
+			float b1 = b.at<float>(1, j);
 
 			if (j < fingerStartIdx)
 				position.at<float>(i, j) = p.at<float>(0, j);
@@ -364,14 +437,8 @@ private:
 
 
 
-	void calculateVelocity(int ps, int pe, cv::Mat gmat, cv::Mat b){
-		//debug
-		//cv::Mat pvel_debug = pvel;
-		//cv::Mat pbest_debug = pbest;
-		//cv::Mat gbest_debug = gbest;
-		//cv::Mat position_debug = position;
-		//cv::waitKey(1);
-
+	void calculateVelocity_backup(int ps, int pe, cv::Mat gmat, cv::Mat b){
+		
 		float r1, r2;
 		for (int i = ps; i < pe; i++)
 		for (int j = 0; j < dimension; j++){
@@ -390,17 +457,47 @@ private:
 				pvel.at<float>(i, j) = v_max;
 			else if (pvel.at<float>(i, j) < -v_max)
 				pvel.at<float>(i, j) = -v_max;
+		}
+	}
 
-			//if (j == 8)
-			//	printf("vel=%f\n", pvel.at<float>(j, i));
+	void calculateVelocity(int ps, int pe, cv::Mat gmat, cv::Mat b){
 
+		cv::Mat v_before;
+		pvel.copyTo(v_before);
+
+		float r1, r2;
+		for (int i = ps; i < pe; i++)
+		for (int j = 0; j < dimension; j++){
+			r1 = rand() / double(RAND_MAX);
+			r2 = rand() / double(RAND_MAX);
+
+			float v = pvel.at<float>(i, j);
+			float pb = pbest.at<float>(i, j);
+			float gb = gmat.at<float>(0, j);//gbest.at<float>(j, 0);
+			float p = position.at<float>(i, j);
+
+			pvel.at<float>(i, j) = weight[2] * (v + r1*weight[0] * (pb - p) + r2*weight[1] * (gb - p));
+
+			/*
+			float v_max = 0.5*(b.at<float>(1, j) - b.at<float>(0, j));//0.5*(boundary.at<float>(j, 1) - boundary.at<float>(j, 0));
+			if (pvel.at<float>(i, j) > v_max)
+				pvel.at<float>(i, j) = v_max;
+			else if (pvel.at<float>(i, j) < -v_max)
+				pvel.at<float>(i, j) = -v_max;
+			*/
 		}
 
+		//debugging
+		printf("weight:%f %f %f\n", weight[0], weight[1], weight[2]);
+		cv::Mat pb= pbest;
+		cv::Mat p = position;
+		cv::Mat g = gmat;
+		cv::Mat btrack = boundary_track;
+		cv::Mat bcnn = boundary_cnn;
 
-
-		//debug
-		//cv::Mat pvel_debug2 = pvel;
-		//cv::waitKey(1);
+		cv::Mat v_after;
+		pvel.copyTo(v_after);
+		cv::waitKey(1);
 	}
 
 	void updateFingers(int begin_p, int end_p, cv::Mat p, cv::Mat b){
@@ -437,18 +534,21 @@ private:
 		}
 	}
 
-	void updateAll(int begin_p, int end_p){
+	void updateAll(int begin_p, int end_p,cv::Mat b){
 		for (int i = begin_p; i < end_p; i++)
 		for (int j = 0; j < dimension; j++)
 		{
 			position.at<float>(i, j) += pvel.at<float>(i, j);
 
-			if (position.at<float>(i, j) < boundary.at<float>(0, j))
-				position.at<float>(i, j) = boundary.at<float>(0, j);
-			else if (position.at<float>(i, j) > boundary.at<float>(1, j))
-				position.at<float>(i, j) = boundary.at<float>(1, j);
+			if (position.at<float>(i, j) < b.at<float>(0, j)){
+				position.at<float>(i, j) = b.at<float>(0, j);
+				hitNumber += 1;
+			}
+			else if (position.at<float>(i, j) > b.at<float>(1, j)){
+				position.at<float>(i, j) = b.at<float>(1, j);
+				hitNumber += 1;
+			}
 		}
-
 	}
 
 	void calculateCost(){
@@ -492,22 +592,33 @@ private:
 		cv::waitKey(1);
 	}
 
-	void showDemo(cv::Mat cam_color,cv::Mat cam_depth)
-	{
-		cv::Mat cam_depth_debug;
-		cam_depth.copyTo(cam_depth_debug);
-
-		//--color
-		float* solp = &position.at<float>(0, 0);
+	void showModel(char* wname,float* solp){
 		_renderer->renderOrig(solp, "color");
 
 		cv::Mat model_color;
 		_glrenderer.getOrigImage(model_color, "color");
 
+		cv::imshow(wname, model_color);
+		cv::waitKey(1);
+	}
+
+	void showObModel(std::string wname,cv::Mat cam_color,cv::Mat cam_depth,float* solp)
+	{
+		cv::Mat cam_depth_debug;
+		cam_depth.copyTo(cam_depth_debug);
+
+		//--color
+		//float* solp = &position.at<float>(0, 0);
+		_renderer->renderOrig(solp, "color");
+
+
+		cv::Mat model_color;
+		_glrenderer.getOrigImage(model_color, "color");
+
 		cv::Mat fimg;
-		cv::addWeighted(cam_color, 0.3, model_color, 0.9, 0, fimg);
-		cv::imshow("final", fimg);
-		cv::imshow("model", model_color);
+		cv::addWeighted(cam_color, 1.0, model_color, 1.0, 0, fimg);
+		cv::imshow(wname, fimg);
+		//cv::imshow("model", model_color);
 		//cv::imshow("final", cam_img);
 		cv::waitKey(1);
 
@@ -526,11 +637,13 @@ private:
 			difdepth.at<float>(j, i) = abs(difdepth.at<float>(j, i));
 
 		cv::normalize(difdepth, difdepth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
-		cv::imshow("dif", difdepth8u);
+		cv::imshow(wname+"_dif", difdepth8u);
 		cv::waitKey(1);
+
 	}
 
-	cv::Mat showObModelParticles(const char* wname)
+
+	cv::Mat showObModelParticles(const char* wname,std::string saveopt,int g)
 	{
 		//model
 		cv::Mat model_depth;
@@ -588,6 +701,18 @@ private:
 		//cv::resize(om_3c, om_3c_resized, cv::Size(896, 896), 0, 0, 1);
 		//cv::imshow(wname, om_3c_resized);
 
+
+		//save//
+		if (saveopt.compare("save") == 0){
+			char filename[100];
+			sprintf(filename, "savepso/%d.png", g);
+			cv::imwrite(filename, om_3c);
+
+		}
+		
+
+
+
 		return om_3c;
 	}
 
@@ -608,6 +733,7 @@ private:
 	HandGenerator* _renderer;
 	CostFunction _costFunct;
 	GLRenderer _glrenderer;
+	MMF* _mmf;
 	//PoseSpace _posespace;
 
 	int particle_numx;
@@ -616,15 +742,17 @@ private:
 	int max_generation;
 	int dimension;
 	float weight[3];
+	int hitNumber;
 
 
 	cv::Mat position;
 	cv::Mat pbest;
 	
-	cv::Mat gbest_partial[2];
+	cv::Mat gbest_part[2];
 	cv::Mat gbest_pre;
+	
 	cv::Mat pvel;
-	cv::Mat boundary, boundary_cnn;
+	cv::Mat boundary_track, boundary_cnn;
 	cv::Mat cost;//
 	cv::Mat cost_pbest;
 	cv::Mat pose_cnn;
@@ -639,4 +767,6 @@ private:
 	//Watch watch;
 
 	int fingerStartIdx;
+
+	float com_hand[3];
 };
