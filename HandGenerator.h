@@ -141,8 +141,6 @@ class HandGenerator{
 					fval_tb[i][j] = std::stoi(str);
 				}
 				fclose(fp);
-				
-				
 			}
 	};
 
@@ -162,7 +160,7 @@ class HandGenerator{
 			_dim = dim;
 			_trackbar = Trackbar(dim);
 
-			classid = 0;
+			classid = 0;// 0;
 			poseidx = 0;
 			_controlDim = controldim;
 			ani_idx = new int[controldim];
@@ -199,7 +197,7 @@ class HandGenerator{
 			////////////////////////////////////
 		}
 
-		int run_animation_class(){
+		int run_cnndataset(){
 
 			//load trackbar value, and convert it to hand parameter value.
 			if (poseidx == (posenum_class* (classid + 1))){
@@ -240,6 +238,56 @@ class HandGenerator{
 			
 
 			if (poseidx == (maxNumPose + 1))
+				return -1;
+
+			return 0;
+		}
+
+		float wval_a[6];
+		float wval_b[6];
+		float fval_a[15][3];
+		float fval_b[15][3];
+
+		int run_sequence(){
+
+			//pose(a)
+			if (poseidx == 0){
+				_trackbar.load(classid);
+				_trackbar.run();
+
+				for (int j = 0; j < 6; j++)
+					wval_a[j] = _trackbar.wval[j];
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_a[i][j] = _trackbar.fval[i][j];
+
+				//pose(b)
+				_trackbar.load(classid+1);
+				_trackbar.run();
+				for (int j = 0; j < 6; j++)
+					wval_b[j] = _trackbar.wval[j];
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_b[i][j] = _trackbar.fval[i][j];
+			}
+			//calculate difference between pose(a) and pose(b).
+			float div = 2.0;
+			for (int j = 0; j < 6; j++)
+				_trackbar.wval[j] = wval_a[j] + (poseidx/div)*(wval_b[j] - wval_a[j]);
+			for (int i = 0; i < 15; i++)
+			for (int j = 0; j < 3; j++)
+				_trackbar.fval[i][j] = fval_a[i][j] + (poseidx/div)*(fval_b[i][j] - fval_a[i][j]);
+
+			//_trackbar.run();
+
+
+			poseidx++;
+
+			if (poseidx == (int)div){
+				poseidx = 0;
+				classid += 1;
+			}
+			if (classid == 25)
 				return -1;
 
 			return 0;
@@ -383,6 +431,8 @@ public:
 			float fy = _posesetgenerator._trackbar.fval[i * 3 + j][1];
 			float fz = _posesetgenerator._trackbar.fval[i * 3 + j][2];
 
+			//printf("tx ty tz: %f %f %f\n", tx, ty, tz);
+			//printf("rx ry rz: %f %f %f\n", rx, ry, rz);
 			//printf("[%d][%d]=%.2f %.2f %.2f\n", i, j, fx, fy, fz);
 			renderGui(tx, ty, tz, rx, ry, rz, fx, fy, fz, i * 3 + j, type);
 		}
@@ -392,6 +442,25 @@ public:
 	{
 		for (int i = 0; i < hp.handParamNum; i++)
 			hand_param[i] = in[i];
+	}
+
+	void getHandPose(float* out){
+
+		//wt
+		for (int i = 0; i < 3; i++)
+			out[i] = _posesetgenerator._trackbar.wval[i];
+		//wr
+		for (int i = 3; i < 6; i++)
+			out[i] = _posesetgenerator._trackbar.wval[i];
+
+		//f
+		for (int i = 0; i < 5; i++){
+			out[6 + 4 * i + 0] = _posesetgenerator._trackbar.fval[3 * i + 0][0];
+			out[6 + 4 * i + 1] = _posesetgenerator._trackbar.fval[3 * i + 0][2];
+			out[6 + 4 * i + 2] = _posesetgenerator._trackbar.fval[3 * i + 1][0];
+			out[6 + 4 * i + 3] = _posesetgenerator._trackbar.fval[3 * i + 2][0];
+		}
+
 	}
 
 	void renderGui(float tx, float ty, float tz, float rx, float ry, float rz, float fx, float fy, float fz, float jid, std::string type){
@@ -458,8 +527,8 @@ private:
 		hand.SetJoint(10, 0, in[20], 0, 0);
 		hand.SetJoint(11, 0, in[21], 0, 0);
 
-		//hand.SetJoint(12, 0, in[22], 0, in[23]);
-		hand.SetJoint(12, 0, in[22], -30, in[23]);
+		hand.SetJoint(12, 0, in[22], 0, in[23]);
+		//hand.SetJoint(12, 0, in[22], -30, in[23]);
 		hand.SetJoint(13, 0, in[24], 0, 0);
 		hand.SetJoint(14, 0, in[25], 0, 0);
 

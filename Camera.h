@@ -26,18 +26,11 @@ public:
 			realcamera = new RealSenseCVWrapper(w, h);
 		else if (camtype.compare("playcamera") == 0)
 			playcamera = new PlayCamera(w, h);
-		else if (camtype.compare("glcamera_gui") == 0){
+		else{
 			handgenerator = hg;
 			glcamera = gr;
 		}
-		else if (camtype.compare("glcamera_dataset") == 0){
-			handgenerator = hg;
-			glcamera = gr;
-		}
-		else if (camtype.compare("glcamera_test") == 0){
-			handgenerator = hg;
-			glcamera = gr;
-		}
+		
 
 		cam_color = cv::Mat(h, w, CV_8UC3);
 		cam_depth16 = cv::Mat(h, w, CV_16UC1);
@@ -88,8 +81,12 @@ public:
 			if (cv::waitKey(1) == 'l')
 				handgenerator->load_trackbar();
 		}
-		else if (_camtype.compare("glcamera_dataset") == 0){
-			if (handgenerator->_posesetgenerator.run_animation_class() == -1)
+		else if (_camtype.compare("glcamera_cnn_dataset") == 0){
+			if (handgenerator->_posesetgenerator.run_cnndataset() == -1)
+				return false;
+		}
+		else if (_camtype.compare("glcamera_sequence") == 0){
+			if (handgenerator->_posesetgenerator.run_sequence() == -1)
 				return false;
 		}
 		else if (_camtype.compare("glcamera_test") == 0){
@@ -118,7 +115,12 @@ public:
 			glFinish();
 			glcamera->getOrigImage(cam_depth, "depth");
 		}
-		else if (_camtype.compare("glcamera_dataset") == 0){
+		else if (_camtype.compare("glcamera_cnn_dataset") == 0){
+			handgenerator->run_posegenerator2hand("depth");
+			glFinish();
+			glcamera->getOrigImage(cam_depth, "depth");
+		}
+		else if (_camtype.compare("glcamera_sequence") == 0){
 			handgenerator->run_posegenerator2hand("depth");
 			glFinish();
 			glcamera->getOrigImage(cam_depth, "depth");
@@ -144,7 +146,12 @@ public:
 			glFinish();
 			glcamera->getOrigImage(cam_color, "color");
 		}
-		else if (_camtype.compare("glcamera_dataset") == 0){
+		else if (_camtype.compare("glcamera_cnn_dataset") == 0){
+			handgenerator->run_posegenerator2hand("color");
+			glFinish();
+			glcamera->getOrigImage(cam_color, "color");
+		}
+		else if (_camtype.compare("glcamera_sequence") == 0){
 			handgenerator->run_posegenerator2hand("color");
 			glFinish();
 			glcamera->getOrigImage(cam_color, "color");
@@ -155,6 +162,27 @@ public:
 			glcamera->getOrigImage(cam_color, "color");
 		}
 		//cv::flip(cam_color, cam_color, 1);
+
+
+		//change color to white.
+		/*
+		for (int i = 0; i < width;i++)
+		for (int j = 0; j < height; j++)
+		{
+			unsigned char b = cam_color.at<uchar>(j, 3 * i + 0);
+			unsigned char g = cam_color.at<uchar>(j, 3 * i + 1);
+			unsigned char r = cam_color.at<uchar>(j, 3 * i + 2);
+
+			if (b>0 & g>0 & r > 0)
+			{
+				
+				cam_color.at<uchar>(j, 3 * i + 0) = 255;
+				cam_color.at<uchar>(j, 3 * i + 1) = 255;
+				cam_color.at<uchar>(j, 3 * i + 2) = 255;
+			}
+		}
+		*/
+
 		cam_color.copyTo(out);
 	}
 

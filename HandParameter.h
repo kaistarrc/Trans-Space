@@ -141,23 +141,16 @@ struct HandParameters
 
 		hp.setup_model_path_full = "data/hand_model_full.dae";
 
-		//hp.setup_model_path_low = "data/hand0201.dae";
-		hp.setup_model_path_low = "data/20180126HandModification_highpoly.dae";
+
+		//hp.setup_model_path_low = "data/wristhand20180203_1.dae";
+		//hp.setup_modelTexture_path = "data/wristhand20180203_1.bmp";
+
+		hp.setup_model_path_low = "data/hand20180203_1.dae";
+		hp.setup_modelTexture_path = "data/hand20180203_1.bmp";
 
 
-		//hp.setup_model_path_low = "data/20180126HandModification.dae";
-		//hp.setup_model_path_low = "data/HandModification3.dae";
-		//hp.setup_model_path_low = "data/LeftHand3.dae";
-		//hp.setup_model_path_low = "data/leapmotionorig.dae";
-		//hp.setup_model_path_low = "data/righthand.dae";
-		//hp.setup_model_path_low = "data/hand_model_leap.dae";
-		//hp.setup_model_path_low = "data/new hand1.dae";
-		//hp.setup_model_path_low = "data/hand_model_orig.dae";
-		//hp.setup_model_path_low = "data/test05.dae";
 		hp.setup_model_property_path = "data/hand.property";
 		hp.setup_model_rules_path = "data/hand.property.rules";
-		hp.setup_modelTexture_path = "data/hand_texture_image.bmp";
-
 		hp.setup_output_folder_path = "data/";
 
 		return hp;

@@ -432,14 +432,15 @@ void main()
 #ifndef TWOINPUTTEST
 
 
-
 void main()
 {
 #pragma region user parameter setting
-	//"realcamera", "playcamera", "glcamera_gui", "glcamera_dataset"
+	//"realcamera", "playcamera", "glcamera_gui", 
+	//"glcamera_cnn_dataset"
+	//"glcamera_sequence"
 	//"glcamera_test"
 
-	std::string cameratype = "glcamera_test"; 
+	std::string cameratype = "glcamera_sequence"; 
 	int width = 640;
 	int height = 480;
 	int width_tile = 128;
@@ -457,29 +458,29 @@ void main()
 	
 
 	//option
-	bool segmenthand_enable = true;  // use blue band
+	bool segmenthand_enable = false;  // use blue band
 
-	bool sendcamimg_enable = false; //true;//send
+	bool sendcamimg_enable = true; //true;//send
 	bool sendresultimg_enable = false;//send
 	
 	bool savegroundtruth_enable = false;//save
 	bool record_enable = false;
+	bool saveexperiment_enable = true;// true;
 
-	bool showgroundtruth_enable = true;//show
+	bool showgroundtruth_enable = false;//show
 	bool showcnnresult_enable = false;//show
 
-	
+#pragma endregion
+
+
+#pragma region init class	
+
 	HandParameters hp = HandParameters::Default();
 	hp.width = width; hp.height = height;
 	hp.width_tile = width_tile; hp.height_tile = height_tile;
 	hp.particle_numx = particle_numx; hp.particle_numy = particle_numy;
 	hp.handParamNum = handParamNum;
-	
-#pragma endregion
 
-
-#pragma region init class	
-	
 	GLRenderer glrenderer(width, height, width_tile, height_tile, width_fb, height_fb);
 	HandGenerator handgenerator(hp);
 	CostFunction costFunction(particle_numx, particle_numy, handParamNum,glrenderer);
@@ -494,7 +495,6 @@ void main()
 	float com_hand[3];
 	cv::Mat cam_depth16= cv::Mat(height, width, CV_16UC1);
 
-	
 	while (1){
 		if (camera.queryFrames() == false)
 			break;
@@ -564,7 +564,7 @@ void main()
 		}
 #pragma endregion
 	
-#pragma region make ground truth for cnn
+#pragma region show ground truth 
 		if (showgroundtruth_enable == true)
 		{
 			std::vector<float> jpos;
@@ -619,19 +619,19 @@ void main()
 			cv::imshow("groundtruth", cam_color);
 			*/
 		}
+#pragma endregion
 		
-		
+#pragma region make ground truth
 		if (savegroundtruth_enable == true){
-
-			//data
 			
-			//for (int i = 0; i < width; i++)
-			//for (int j = 0; j < height; j++)
-			//	cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
+			//data
+			for (int i = 0; i < width; i++)
+			for (int j = 0; j < height; j++)
+				cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
 
-			//char filenamed[200];
-			//sprintf(filenamed, "save/cnn26D/test/data/depth-%07u.png", camera._frame);
-			//cv::imwrite(filenamed, cam_depth16);
+			char filenamed[200];
+			sprintf(filenamed, "save/cnn26D/test/data/depth-%07u.png", camera._frame);
+			cv::imwrite(filenamed, cam_depth16);
 			
 			char filenamec[200];
 			sprintf(filenamec, "save/cnn26D/test/data/color-%07u.png", camera._frame);
@@ -665,69 +665,20 @@ void main()
 				fclose(fp);
 			}
 			*/
-			//label (23D angle)
-			/*
-			{
-				FILE* fp;
-				char filenamel[200];
-				sprintf(filenamel, "save/cnn23D/train/label/label23D.csv");
-				fp = fopen(filenamel, "a");
-
-				char str[100];
-
-				float jpos[23];
-				for (int i = 0; i < 3;i++)
-					jpos[i]= handgenerator._posesetgenerator._trackbar.wval[i+3];
-				
-				for (int i = 0; i < 5;i++){
-					jpos[3 + 4 * i + 0] = handgenerator._posesetgenerator._trackbar.fval[3 * i+0][0];
-					jpos[3 + 4 * i + 1] = handgenerator._posesetgenerator._trackbar.fval[3 * i+0][2];
-					jpos[3 + 4 * i + 2] = handgenerator._posesetgenerator._trackbar.fval[3 * i+1][0];
-					jpos[3 + 4 * i + 3] = handgenerator._posesetgenerator._trackbar.fval[3 * i+2][0];
-				}
-				for (int i = 0; i < 23; i++)
-				{
-
-					if (i == 22)
-						sprintf(str, "%.2f\n", jpos[i]);
-					else
-						sprintf(str, "%.2f,", jpos[i]);
-
-					fputs(str, fp);
-				}
-				fclose(fp);
-			}
-			*/
 
 			//label (26D pose)
-			/*
 			{
 				FILE* fp;
 				char filenamel[200];
 				sprintf(filenamel, "save/cnn26D/train/label/label26D.csv");
 				fp = fopen(filenamel, "a");
 
-				char str[100];
-
+				char str[100];	
 				float jpos[26];
+				handgenerator.getHandPose(jpos);
 
-				//wt
-				for (int i = 0; i < 3; i++)
-					jpos[i] = handgenerator._posesetgenerator._trackbar.wval[i] - com_hand[i];
-				//wr
-				for (int i = 3; i < 6; i++)
-					jpos[i] = handgenerator._posesetgenerator._trackbar.wval[i];
-
-				//f
-				for (int i = 0; i < 5; i++){
-					jpos[6 + 4 * i + 0] = handgenerator._posesetgenerator._trackbar.fval[3 * i + 0][0];
-					jpos[6 + 4 * i + 1] = handgenerator._posesetgenerator._trackbar.fval[3 * i + 0][2];
-					jpos[6 + 4 * i + 2] = handgenerator._posesetgenerator._trackbar.fval[3 * i + 1][0];
-					jpos[6 + 4 * i + 3] = handgenerator._posesetgenerator._trackbar.fval[3 * i + 2][0];
-				}
 				for (int i = 0; i < 26; i++)
 				{
-
 					if (i == 25)
 						sprintf(str, "%.2f\n", jpos[i]);
 					else
@@ -737,7 +688,7 @@ void main()
 				}
 				fclose(fp);
 			}
-			*/
+			
 			
 
 		}
@@ -815,16 +766,49 @@ void main()
 
 #pragma region model fitting
 		
+		float jpos[26];
+		handgenerator.getHandPose(jpos);
+		pso.setTruePose(jpos);
+
+
 		//pso.run(cam_color, cam_depth, com_hand,"6D"); 
 		//pso.run(cam_color, cam_depth, com_hand,"26D");
-		//pso.run(cam_color, cam_depth,com_hand, "hybrid");
+		//for (int g = 0; g < 2;g++)
+		pso.run(cam_color, cam_depth,com_hand, "hybrid");
 
-		if (cv::waitKey(1) == 'o')
-			pso.run(cam_color, cam_depth, com_hand, "26D");
-
-		
+		//if (cv::waitKey(1) == 'o')
+			//pso.run(cam_color, cam_depth, com_hand, "26D");		
 #pragma endregion
 
+#pragma region accuracy experiment
+		if (saveexperiment_enable == true){
+			
+			float groundtruth[26];
+			handgenerator.getHandPose(groundtruth);
+
+			float estimated[26];
+			pso.getFinalSolution(estimated);
+
+			FILE* fp;
+			char filename[200];
+			sprintf(filename, "experiment/method3.csv");
+			fp = fopen(filename, "a");
+
+			char str[100];
+			for (int i = 0; i < 26; i++){
+				float err = estimated[i]- groundtruth[i];
+
+				if (i == 25)
+					sprintf(str, "%.2f\n", err);
+				else
+					sprintf(str, "%.2f,", err);
+
+				fputs(str, fp);
+			}
+			fclose(fp);
+		}
+
+#pragma endregion
 
 #pragma region gui test	
 
