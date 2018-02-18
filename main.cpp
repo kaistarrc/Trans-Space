@@ -432,46 +432,64 @@ void main()
 #ifndef TWOINPUTTEST
 
 
-void main()
+void main(int argc, char** argv)
 {
+	
+
+
 #pragma region user parameter setting
 	//"realcamera", "playcamera", "glcamera_gui", 
 	//"glcamera_cnn_dataset"
 	//"glcamera_sequence"
 	//"glcamera_test"
 
-	std::string cameratype = "glcamera_sequence"; 
+	//std::string cameratype = "playcamera";
+	//std::string cameratype = "realcamera";
+	//std::string cameratype = "glcamera_gui"; 
+	//std::string cameratype = "glcamera_sequence";
+	std::string cameratype = "glcamera_test";
+
+	//model fitting
+	bool runPSO_enable = true;
+
+	//
 	int width = 640;
 	int height = 480;
-	int width_tile = 128;
-	int height_tile = 128;
+	int width_tile = 128;// 128;
+	int height_tile = 128;// 128;
 	int width_mmf = 128;
 	int height_mmf = 128;
 	int handParamNum = 26;
 	int JOINT_COUNT = 19;
-	int max_generation = 30;
+	int max_generation = 100;
 	int particle_numx = 8;
-	int particle_numy = 4;
+	int particle_numy = 8;
 	int particle_num = particle_numx*particle_numy;
 	int width_fb = width_tile * particle_numx;
 	int height_fb = height_tile * particle_numy;
 	
 
 	//option
-	bool segmenthand_enable = false;  // use blue band
+	//blue band
+	bool segmenthand_enable = true;  
 
+	//transfer mmf image
 	bool sendcamimg_enable = true; //true;//send
 	bool sendresultimg_enable = false;//send
 	
+	//save
+	bool saveimage_enable = false;// true;                   //jj
 	bool savegroundtruth_enable = false;//save
-	bool record_enable = false;
-	bool saveexperiment_enable = true;// true;
+	bool savepsoresult_enable = false;                      //jj
+	bool saveexperiment_enable = false;
 
+	//show
 	bool showgroundtruth_enable = false;//show
 	bool showcnnresult_enable = false;//show
+	
+	
 
 #pragma endregion
-
 
 #pragma region init class	
 
@@ -518,28 +536,13 @@ void main()
 
 #pragma endregion 
 
-#pragma region record frames
-		if (cv::waitKey(1) == 'r')
-			record_enable = true;
-
-		if (record_enable == true){	
-			printf("record start\n");
-			camera.recordFrames();
-		}
-		
-		
-#pragma endregion
-		
 
 #pragma region preprocessing
-		
+
 		if (segmenthand_enable==true)
 			preproc.segmentHandFromBand(cam_color, cam_depth);
 	
 		preproc.getComHandxyz(cam_depth,com_hand);
-		//cv::imshow("seg_depth", cam_depth);
-		//cvMoveWindow("seg_depth", 1000, 600);
-		//printf("com:%f %f %f\n", com_hand[0], com_hand[1], com_hand[2]);
 
 #pragma endregion
 
@@ -567,132 +570,13 @@ void main()
 #pragma region show ground truth 
 		if (showgroundtruth_enable == true)
 		{
-			std::vector<float> jpos;
-			handgenerator.hand.GetJointAllPosition(&jpos);
-
-			int idx[20] = { 1, 2, 3, 4,
-				6, 7, 8, 9,
-				11, 12, 13, 14,
-				16, 17, 18, 19,
-				21, 22, 23, 24 };
-			int color[5][3] = { { 255, 0, 0 }, { 0, 255, 0 }, { 0, 0, 255 }, { 255, 255, 0 }, { 255, 255, 255 } };
-
 			cv::Mat cmat;
 			camera.getCalibrationMatrix(cmat);
-		
-			for(int i = 0; i < 20; i++)
-			{
-				int jid = idx[i];
-
-				float x = jpos[3 * jid + 0];
-				float y = jpos[3 * jid + 1];
-				float z = jpos[3 * jid + 2];
-
-				float x_ = x * cmat.at<float>(0, 0) + y * cmat.at<float>(0, 1) + z * cmat.at<float>(0, 2);
-				float y_ = x * cmat.at<float>(1, 0) + y * cmat.at<float>(1, 1) + z * cmat.at<float>(1, 2);
-				float z_ = x * cmat.at<float>(2, 0) + y * cmat.at<float>(2, 1) + z * cmat.at<float>(2, 2);
-				x_ /= z_;
-				y_ /= z_;
-
-				cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(color[i/4][0], color[i/4][1], color[i/4][2]), 5, 8, 0);
-
-			}
-			cv::imshow("groundtruth", cam_color);
-			/*
-			for (int i = 0; i < 5; i++){
-				for (int j = 0; j < 3; j++){
-					float jpos[3];
-					handgenerator.hand.GetJointPosition(i, j, jpos);
-
-					cv::Mat cmat;
-					camera.getCalibrationMatrix(cmat);
-
-					float x_ = jpos[0] * cmat.at<float>(0, 0) + jpos[1] * cmat.at<float>(0, 1) + jpos[2] * cmat.at<float>(0, 2);
-					float y_ = jpos[0] * cmat.at<float>(1, 0) + jpos[1] * cmat.at<float>(1, 1) + jpos[2] * cmat.at<float>(1, 2);
-					float z_ = jpos[0] * cmat.at<float>(2, 0) + jpos[1] * cmat.at<float>(2, 1) + jpos[2] * cmat.at<float>(2, 2);
-					x_ /= z_;
-					y_ /= z_;
-					cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(255, 255, 255), 5, 8, 0);
-					//printf("g[%d]: x:%f y:%f z:%f\n", i*3+j, jpos[0] - com_hand[0], jpos[1] - com_hand[1], jpos[2] - com_hand[2]);
-				}
-			}
-			cv::imshow("groundtruth", cam_color);
-			*/
+			handgenerator.showJoints(cam_color, cmat);
 		}
 #pragma endregion
 		
-#pragma region make ground truth
-		if (savegroundtruth_enable == true){
-			
-			//data
-			for (int i = 0; i < width; i++)
-			for (int j = 0; j < height; j++)
-				cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
 
-			char filenamed[200];
-			sprintf(filenamed, "save/cnn26D/test/data/depth-%07u.png", camera._frame);
-			cv::imwrite(filenamed, cam_depth16);
-			
-			char filenamec[200];
-			sprintf(filenamec, "save/cnn26D/test/data/color-%07u.png", camera._frame);
-			cv::imwrite(filenamec, cam_color);
-
-			//label (joints position)
-			/*
-			{
-				FILE* fp;
-				char filenamel[200];
-				sprintf(filenamel, "save/cnn/test/label/label.csv");
-				fp = fopen(filenamel, "a");
-
-				char str[100];
-
-				for (int i = 0; i < 5; i++)
-				for (int j = 0; j < 3; j++){
-					float jpos[3];
-					handgenerator.hand.GetJointPosition(i, j, jpos);
-
-					for (int k = 0; k < 3; k++)
-						jpos[k] = com_hand[k] - jpos[k];
-
-					if (i == 4 & j == 2)
-						sprintf(str, "%.2f,%.2f,%.2f\n", jpos[0], jpos[1], jpos[2]);
-					else
-						sprintf(str, "%.2f,%.2f,%.2f,", jpos[0], jpos[1], jpos[2]);
-
-					fputs(str, fp);
-				}
-				fclose(fp);
-			}
-			*/
-
-			//label (26D pose)
-			{
-				FILE* fp;
-				char filenamel[200];
-				sprintf(filenamel, "save/cnn26D/train/label/label26D.csv");
-				fp = fopen(filenamel, "a");
-
-				char str[100];	
-				float jpos[26];
-				handgenerator.getHandPose(jpos);
-
-				for (int i = 0; i < 26; i++)
-				{
-					if (i == 25)
-						sprintf(str, "%.2f\n", jpos[i]);
-					else
-						sprintf(str, "%.2f,", jpos[i]);
-
-					fputs(str, fp);
-				}
-				fclose(fp);
-			}
-			
-			
-
-		}
-#pragma endregion
 
 #pragma region get cnn result
 		if (showcnnresult_enable == true)
@@ -763,36 +647,66 @@ void main()
 
 #pragma endregion
 
-
 #pragma region model fitting
-		
-		float jpos[26];
-		handgenerator.getHandPose(jpos);
-		pso.setTruePose(jpos);
+		if (runPSO_enable == true){
 
+			if (cameratype.compare("glcamera_test") == 0)
+			{
+				float jpos[26];
+				handgenerator.getHandPose(jpos);
+				pso.setTruePose(jpos);
+			}
+			
 
-		//pso.run(cam_color, cam_depth, com_hand,"6D"); 
-		//pso.run(cam_color, cam_depth, com_hand,"26D");
-		//for (int g = 0; g < 2;g++)
-		pso.run(cam_color, cam_depth,com_hand, "hybrid");
+			//pso.bound_alpha0 =  std::atof(argv[1]);  //0.5 or 0.3
+			//pso.bound_alpha1 = std::atof(argv[2]); //0.5
+			//pso.experimentID = std::atoi(argv[3]);
 
-		//if (cv::waitKey(1) == 'o')
+			pso.bound_alpha0 = 0.5;
+			pso.bound_alpha1 = 0.1;
+			pso.experimentID = 0;//
+
+			//pso.run(cam_color, cam_depth, com_hand,"6D"); 
+			//pso.run(cam_color, cam_depth, com_hand,"26D");
+
+			pso.run(cam_color, cam_depth, com_hand, "hybrid");
+
+			//if (cv::waitKey(1) == 'o')
 			//pso.run(cam_color, cam_depth, com_hand, "26D");		
+		}
+#pragma endregion
+
+
+#pragma region save ground truth
+		if (saveimage_enable == true)
+			camera.recordFrames();
+
+		if (savegroundtruth_enable==true)
+			handgenerator.saveJoints();
+		
+		if (savepsoresult_enable == true)
+			pso.saveJoints(camera._frame);
+
+		if (saveimage_enable==true)
+			camera._frame += 1;
+
 #pragma endregion
 
 #pragma region accuracy experiment
 		if (saveexperiment_enable == true){
 			
 			float groundtruth[26];
-			handgenerator.getHandPose(groundtruth);
+			//handgenerator.getHandPose(groundtruth);
+			pso.getTruePose(groundtruth);
 
 			float estimated[26];
 			pso.getFinalSolution(estimated);
 
 			FILE* fp;
 			char filename[200];
-			sprintf(filename, "experiment/method3.csv");
-			fp = fopen(filename, "a");
+			//sprintf(filename, "experiment/method%d.csv",std::atoi(argv[4]));
+			sprintf(filename, "experiment/method%d.csv", std::atoi(argv[3]));
+			fp = fopen(filename, "w");
 
 			char str[100];
 			for (int i = 0; i < 26; i++){
@@ -810,6 +724,7 @@ void main()
 
 #pragma endregion
 
+	
 #pragma region gui test	
 
 	/*
@@ -901,14 +816,45 @@ void main()
 
 
 #pragma region release
+
+		if (cv::waitKey(1) == 'j'){
+			saveimage_enable = true;
+			savepsoresult_enable = false;
+		}
+
 		camera.releaseFrames();
 		cv::waitKey(1);
+
+		if (cv::waitKey(1) == 'q')
+			break;
+
+		if (cameratype.compare("playcamera") == 0){
+			pso._frame = camera._frame;
+			camera._frame++;
+
+			//if (camera._frame == 200)
+			//	break;
+		}
+
+
+		//debugging with synthetic data
+		
+		for (int j = 0; j < 26; j++)
+			printf("err[%d]=%f\n", j, pso.gbest.at<float>(0, j) - pso.truepose.at<float>(0, j));
+		printf("gbestidx:%d\n", pso.gbestIdx);
+		while (1){
+			if (cv::waitKey(100) == '0')
+				break;
+
+			if (cv::waitKey(100) == 'q')
+				exit(1);
+
+		}
+		
+		
 		
 #pragma endregion
 		
-		
 	}
-
-
 }
 #endif

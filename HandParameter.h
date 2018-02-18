@@ -3,7 +3,7 @@
 
 const float boundary_max[2][26] = {
 	{ -100, -100, 0,
-	-360, -360, -360,
+	-180, -180, -180,
 
 	-30, -70, -90, -90,  //0: stretch
 	-90, -20, -90, -90,
@@ -12,7 +12,7 @@ const float boundary_max[2][26] = {
 	-90, -20, -90, -90 },
 
 	{ 100, 100, 300,
-	360, 360, 360,
+	180, 180, 180,
 
 	50, 20, 0, 0,
 	0, 0, 0, 0,		//90: bend
@@ -79,12 +79,12 @@ struct HandParameters
 		hp.fy =  477.9;
 		
 		hp.render_animationSpeed = 0.01f;
-		hp.width_tile = 128;
-		hp.height_tile = 128;
+		hp.width_tile = 128;// 128;
+		hp.height_tile = 128;// 128;
 		hp.width = 640;
 		hp.height = 480;
 		hp.particle_numx = 8;
-		hp.particle_numy = 4;
+		hp.particle_numy = 8;
 		hp.handParamNum = 26;
 		hp.num_joints = 15;
 
@@ -138,16 +138,21 @@ struct HandParameters
 		hp.setup_shader_modelViewUniformName = "model_view_mat";
 		hp.setup_shader_textureUniformName = "textureObject";
 		hp.setup_shader_boneUniformName = "bone_matrix";
-
 		hp.setup_model_path_full = "data/hand_model_full.dae";
 
+		
+		//hp.setup_model_path_low = "data/wristHand_20180210.dae"; //wrist is changed to bigger one.
+		//hp.setup_model_path_low = "data/wristHand_20180208_2.dae"; //wrist is too small
+		//hp.setup_modelTexture_path = "data/wristHand_20180208_1.bmp";
+		//hp.setup_modelTexture_path = "data/test_color.bmp";
 
-		//hp.setup_model_path_low = "data/wristhand20180203_1.dae";
-		//hp.setup_modelTexture_path = "data/wristhand20180203_1.bmp";
 
 		hp.setup_model_path_low = "data/hand20180203_1.dae";
+		
 		hp.setup_modelTexture_path = "data/hand20180203_1.bmp";
-
+		//hp.setup_modelTexture_path = "data/hand20180214_2.bmp";
+		//hp.setup_modelTexture_path = "data/hand_texture_image_colored convert01.bmp";
+		//hp.setup_modelTexture_path = "data/hand_texture_image_colored white.bmp";
 
 		hp.setup_model_property_path = "data/hand.property";
 		hp.setup_model_rules_path = "data/hand.property.rules";

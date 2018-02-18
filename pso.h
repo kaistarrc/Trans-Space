@@ -14,11 +14,32 @@
 
 #include <random>
 
+#define DEBUGGING
 
-#define SYNTHETIC_TEST
+#define METHOD00
+//#define METHOD01
+
+
+#define METHOD10
+//#define METHOD11
+
+#define CONSISTENT_SEED
+
 
 
 #pragma comment(lib,"opencv_world310.lib")
+
+namespace {
+#ifdef CONSISTENT_SEED
+	unsigned int generate_seed() {
+		return 0u;
+	}
+#else
+	unsigned int generate_seed() {
+		return std::random_device{}();
+	}
+#endif
+}
 
 class PSO{
 
@@ -28,16 +49,14 @@ public:
 
 	PSO(int p_numX, int p_numY, int g_num, int dim,
 		HandGenerator* renderer,GLRenderer& glrenderer,CostFunction& costFunct,MMF* mmf)
+	    //: gen_gaussian{ generate_seed() }, gen_uniform{ generate_seed() }
+		:gen_gaussian{ std::random_device{}() }, gen_uniform{ std::random_device{}() }
 	{
 		_renderer = renderer;
 		_costFunct = costFunct;
 		_glrenderer = glrenderer;
 		_mmf = mmf;
 		//_posespace = posespace;
-
-		//random
-		std::random_device rand_dev;
-		gen_gaussian = new std::mt19937(rand_dev());
 
 		//size
 		particle_numx = p_numX;
@@ -55,15 +74,17 @@ public:
 		pbest = cv::Mat(particle_num, dimension, CV_32FC1);
 
 		gbest = cv::Mat(1, dimension, CV_32FC1);
-		gbest_part[0] = cv::Mat(1, dimension, CV_32FC1);
-		gbest_part[1] = cv::Mat(1, dimension, CV_32FC1);
 		gbest_pre = cv::Mat(1, dimension, CV_32FC1);
-		
+		gbest_track = cv::Mat(1, dimension, CV_32FC1);
+		gbest_cnn = cv::Mat(1, dimension, CV_32FC1);
+
 		pvel = cv::Mat(particle_num, dimension, CV_32FC1);
 		boundary_track = cv::Mat(2, dimension, CV_32FC1);
 		boundary_cnn = cv::Mat(2, dimension, CV_32FC1);
 		boundary_const = cv::Mat(2, dimension, CV_32FC1);
 		cost = cv::Mat(1, particle_num, CV_32FC1);//
+		cost_pre = cv::Mat(1, particle_num, CV_32FC1);
+		cost_dif = cv::Mat(1, particle_num, CV_32FC1);
 		cost_pbest = cv::Mat(1, particle_num, CV_32FC1);
 		pose_cnn = cv::Mat(1, dimension, CV_32FC1);
 		cov_track = cv::Mat(1, dimension, CV_32FC1);
@@ -72,6 +93,7 @@ public:
 		collisionNumber_track = cv::Mat(2, dimension, CV_32FC1);
 		collisionNumber_cnn = cv::Mat(2, dimension, CV_32FC1);
 
+		
 		truepose = cv::Mat(1, dimension, CV_32FC1);
 		for (int j = 0; j < dimension; j++){
 			boundary_const.at<float>(0, j) = boundary_max[0][j];
@@ -79,7 +101,8 @@ public:
 		}
 
 		//debugging--
-		debugmatrix = cv::Mat(5, dimension, CV_32FC1);
+		debugmatrix = cv::Mat(11, dimension, CV_32FC1);
+		//debugmatrix = cv::Mat(5, dimension, CV_32FC1);
 		//debugging--
 
 
@@ -165,51 +188,44 @@ public:
 
 #pragma region set pose_cnn / boundary_cnn 
 		if (type.compare("hybrid") == 0){
-			//from trained cnn.
+						
+			//from manual cnn
 			
+			for (int i = 0; i < dimension; i++)
+				pose_cnn.at<float>(0, i) = truepose.at<float>(0, i);
+			
+			for (int i = 0; i < 6; i++)
+				pose_cnn.at<float>(0, i) += frand_gaussian(0, 5, -15, 15);
+				//pose_cnn.at<float>(0, i) += -15 +rand() / double(RAND_MAX) * 30;
+
+			for (int i = 6; i < dimension; i++){
+				pose_cnn.at<float>(0, i) += frand_gaussian(0, 20, -30, 30);
+				//pose_cnn.at<float>(0, i) += -bs + rand() / double(RAND_MAX) * 2*bs;
+			}
+
+			//from trained cnn.
+			/*
 			_mmf->receiveData();
 			_mmf->getLabel(&pose_cnn.at<float>(0, 0));
 			pose_cnn.at<float>(0, 0) += com_hand[0];
 			pose_cnn.at<float>(0, 1) -= com_hand[1];
 			pose_cnn.at<float>(0, 2) += com_hand[2];
-
-			
-			//from input trackbar.
-			/*
-			for (int i = 0; i < 6; i++)
-				pose_cnn.at<float>(0, i) = _renderer->_posesetgenerator._trackbar.wval[i];
-
-			for (int i = 0; i < 5; i++)
-			{
-				pose_cnn.at<float>(0, 6 + 4 * i + 0) = _renderer->_posesetgenerator._trackbar.fval[3 * i + 0][0];
-				pose_cnn.at<float>(0, 6 + 4 * i + 1) = _renderer->_posesetgenerator._trackbar.fval[3 * i + 0][2];
-				pose_cnn.at<float>(0, 6 + 4 * i + 2) = _renderer->_posesetgenerator._trackbar.fval[3 * i + 1][0];
-				pose_cnn.at<float>(0, 6 + 4 * i + 3) = _renderer->_posesetgenerator._trackbar.fval[3 * i + 2][0];
-			}
-
-			//move cnn pose beside true pose 
-			for (int i = 0; i < 3;i++)
-				pose_cnn.at<float>(0, i) += 20; 
-			for (int i = 3; i < 6; i++)
-				pose_cnn.at<float>(0, i) += 20;
-
-			for (int i = 6; i < 26; i++)
-				pose_cnn.at<float>(0, i) += 20;
 			*/
 
-
-
+			//limit position
 			limitPosition(pose_cnn, boundary_const);
+
 			//show model
-			showObModel("cnn",cam_color,cam_depth, &pose_cnn.at<float>(0, 0));
+			showObModel("cnn",cam_color,cam_depth, &pose_cnn.at<float>(0, 0),"nosave");
 
 			//set boundary cnn
 			setBoundary_cnn();
 		}
 #pragma endregion
 		
+#pragma region initialize 
 		initializeVelocity();
-		initializeCost();
+		initializePcost(0,particle_num);
 
 		setBoundary_track(); //check (around gbest_param_pre)
 		
@@ -231,81 +247,272 @@ public:
 		
 		calculateCost();
 		calculatePbest(); 
-		calculateGbest(0, particle_num, gbest); 
-
+		calculateGbest(0, particle_num / 2, gbest_track);
+		calculateGbest(particle_num/2, particle_num, gbest_cnn);
+		calculateGbest(0, particle_num, gbest);
 		//showObModelParticles("initial");
-		//cv::waitKey(1);
-		//cv::waitKey(1);
-		
-		
+#pragma endregion
+
 		for (int g = 0; g < max_generation; g++){
 			
+#pragma region calculate velocity and update particles.
 			//showObModelParticles("during","save",g);
-	
 			if (type.compare("6D") == 0){
 				calculateVelocity(0, particle_num, gbest, boundary_track);
 				updatePalm(0, particle_num, gbest, boundary_track);
 			}
 			else if (type.compare("26D")==0){
+				
 				calculateVelocity(0, particle_num, gbest, boundary_track);
-				updateAll(0, particle_num, boundary_track,collisionNumber_track);
-
-				//calculateVelocity_backup(0, particle_num, gbest, boundary_track);
-				//updateAll_backup(0, particle_num, boundary_track);
+				updateAll(0, particle_num, boundary_track,collisionNumber_track,"damping");
+			
 			}
 			else if (type.compare("hybrid") == 0){
 				
-				calculateVelocity(0, particle_num/2, gbest, boundary_track);
-				updateAll(0, particle_num/2, boundary_track,collisionNumber_track);
+#ifdef METHOD01
+				calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
+				updateAll(0, particle_num / 2, boundary_track, collisionNumber_track);
 
-				calculateVelocity(particle_num/2, particle_num, gbest, boundary_cnn);
-				updateAll(particle_num/2, particle_num, boundary_cnn,collisionNumber_cnn);
+				calculateVelocity(particle_num / 2, particle_num, gbest_cnn, boundary_cnn);
+				updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn);
+#endif
+
+#ifdef METHOD00
+				if (g < 5){
+					calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
+					updateAll(0, particle_num / 2, boundary_track, collisionNumber_track,"damping");
+
+					calculateVelocity(particle_num / 2, particle_num, gbest_cnn, boundary_cnn);
+					updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn,"damping");
+				}
+				else{
+
+					calculateVelocity(0, particle_num / 2, gbest, boundary_track);
+					updateAll(0, particle_num / 2, boundary_track, collisionNumber_track,"damping");
+
+					calculateVelocity(particle_num / 2, particle_num, gbest, boundary_cnn);
+					updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn,"damping");
+				}	
+#endif
+				
+					
 			}
+#pragma endregion
+			//after initial search during 10 generations.
+			
+			
+#pragma region reinitialize when velocity is about zero.
+			/*
+			{
+				float deadrange[26] = { 2, 2, 2, 2, 2, 2,
+					2, 1, 2, 2,
+					2, 1, 2, 2,
+					2, 1, 2, 2,
+					2, 1, 2, 2,
+					2, 1, 2, 2 };
 
+				for (int j = 6; j < dimension; j++)
+				{
+					int velnum[2] = { 0 };
+					for (int i = 0; i < particle_num / 2; i++){
+						if (abs(pvel.at<float>(i, j)) < deadrange[j])
+							velnum[0] += 1;
+					}
+					for (int i = particle_num / 2; i < particle_num; i++){
+						if (abs(pvel.at<float>(i, j)) < deadrange[j])
+							velnum[1] += 1;
+					}
+
+					if (velnum[0] > 0.5*particle_num / 2){
+						updateBoundary2(j, collisionNumber_track, boundary_track,bound_alpha0);
+
+						for (int i = 0; i < particle_num / 2; i++){
+							float b0 = boundary_track.at<float>(0, j);
+							float b1 = boundary_track.at<float>(1, j);
+							//position.at<float>(i, j) = frand_gaussian((b0 + b1) / 2, (b1 - b0)*0.3, b0, b1);
+							//position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
+							position.at<float>(i, j) = frand_uniform(b0, b1);
+							pvel.at<float>(i, j) = 0;
+						}
+
+					}
+					if (velnum[1] > 0.5*particle_num / 2){
+						updateBoundary2(j, collisionNumber_cnn, boundary_cnn,bound_alpha1);
+
+						for (int i = particle_num / 2; i < particle_num; i++){
+							float b0 = boundary_cnn.at<float>(0, j);
+							float b1 = boundary_cnn.at<float>(1, j);
+							//position.at<float>(i, j) = frand_gaussian((b0 + b1) / 2, (b1 - b0)*0.3, b0, b1);
+							//position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
+							position.at<float>(i, j) = frand_uniform(b0, b1);
+							pvel.at<float>(i, j) = 0;
+						}
+					}
+				}
+			}
+			*/
+#pragma endregion
+			
+
+#pragma region calculate cost / pbest / gbest	
+			//cost difference
+			if (g > 0)
+				cost.copyTo(cost_pre);
 			
 			calculateCost();
-			calculatePbest();//ok
-			calculateGbest(0, particle_num, gbest);//ok
+
+			if (g > 0)
+				cost_dif = cost - cost_pre;
 			
-			//--change boundary--//
-			updateBoundary(g, collisionNumber_track,boundary_track);
-			updateBoundary(g, collisionNumber_cnn, boundary_cnn);
+			//
+			calculatePbest();
+			calculateGbest(0, particle_num / 2, gbest_track);
+			calculateGbest(particle_num / 2, particle_num, gbest_cnn);
+			calculateGbest(0, particle_num, gbest);
+#pragma endregion
 
-			//--show particles--//
+#pragma region change boundary
+			
+			float b_alpha0 = bound_alpha0;
+			float b_alpha1 = bound_alpha1;
+			if (g>=5 && g%5==0)
+			{
 
-			//showObModelParticles("during","save",g);
-			//cv::moveWindow("during", 896, 0);
-			//cv::waitKey(1);
-			//printf("costgbest[%d]:%f\n", i, cost_gbest);
-			//cv::waitKey(1);
+				for (int j = 0; j < 6; j++){
+					//for (int j = 0; j < dimension; j++){
+
+
+					//for (int j = 0; j < dimension; j++){
+					//	if ((j - fingerStartIdx) % 4 == 1)
+					//		continue;
+
+					//updateBoundary2(j, collisionNumber_track, boundary_track,  b_alpha0);
+					//updateBoundary2(j, collisionNumber_cnn, boundary_cnn,b_alpha1);
+
+					//0~particle_num/2.
+					
+					{
+						float avg = calculateAverage(position, j, 0, particle_num / 2);
+						float stdev = calculateSTDEV(position, j, avg, 0, particle_num / 2);
+
+						printf("avg:%f stdev:%f\n", avg, stdev);
+						if (checkUpperBoundary(j, avg, stdev) == 1)
+							updateBoundary3(j, avg,stdev,boundary_track);
+						if (checkLowerBoundary(j, avg, stdev) == 1)
+							updateBoundary3(j, avg,stdev,boundary_track);
+					}
+
+					cv::waitKey(1);
+					//particle_num/2~particle_num
+					/*
+					{
+						float avg = calculateAverage(position, j, particle_num/2, particle_num);
+						float stdev = calculateSTDEV(position, j, avg, particle_num/2, particle_num);
+
+						if (checkUpperBoundary(j, avg, stdev) == 1)
+							updateBoundary3(j, avg,stdev,boundary_cnn);
+						if (checkLowerBoundary(j, avg, stdev) == 1)
+							updateBoundary3(j, avg,stdev,boundary_cnn);
+					}
+					*/
+				}
+			}
+
+		
+			
+			
+#ifdef METHOD10
+			
+			if(g % 3 == 0){
+
+				//reinitializeFingers(particle_num / 2, particle_num, 10, gbest_cnn, boundary_cnn);
+
+				//int r = frand_uniform(0, 5);
+				//int dr = 6+4*r;
+
+				//int r = frand_uniform(0, 20);
+				//int dr = 6 + r;
+				//printf("dr:%d\n", dr);
+				reinitializeFingers(0, particle_num/4,boundary_track);
+				reinitializeFingers(3*particle_num/4, particle_num,boundary_cnn);
+				
+				//reinitializeFingers(0, particle_num/4, dr,gbest, boundary_track);
+				//reinitializeFingers(particle_num/2,4*particle_num/3, dr, gbest, boundary_cnn);
+			}
+			
+
+#endif
+
+			
+			
+
+#pragma endregion
+
+#pragma region debug particles
+#ifdef DEBUGGING
+			debugParticles(g);
+
+			cv::Mat ddimg;
+			ddimg = getObModelParticles();
+			showObModelParticles("during", "nosave", g);
+			cv::moveWindow("during", 2000, 0);
+
+			cv::Mat bbt = boundary_track;
+			cv::Mat bbc = boundary_cnn;
+			cv::Mat vv = pvel;
+			printf("g:%d\n", g);
+			cv::waitKey(1);
+
+			//
+			
+			if (g==1)
+				cv::imshow("during_pre", debug_Particleimage);
+			
+			/*
+			while (1){
+				if (cv::waitKey(100) == '0')
+					break;
+				if (cv::waitKey(100) == 'q')
+					exit(1);
+			}
+			*/
+
+			if (g==0)
+			ddimg.copyTo(debug_Particleimage);
+			
+
+#endif
+#pragma endregion
+
 		}
-		
+//generation finish.
 
-		//select best solution.		
-		//printf("PSO\N");
-		
+
+		//select best solution.				
 		for (int j = 0; j < dimension; j++){
 			position.at<float>(0, j) = gbest.at<float>(0, j);
 			gbest_pre.at<float>(0, j) = gbest.at<float>(0, j);
-			//cost_gbest_pre = cost_gbest;
-			//printf("gbest[%d]=%f\n", j, gbest.at<float>(0, j));
 		}
 		
 		//for (int i = 0; i < 5; i++)
 		//	printf("F[%d] %.2f %.2f %.2f %.2f\n", i, gbest.at<float>(0, 6 + 4 * i + 0), gbest.at<float>(0, 6 + 4 * i + 1), gbest.at<float>(0, 6 + 4 * i + 2), gbest.at<float>(0, 6 + 4 * i + 3));
 		
-
 		//visualize final solution
 		//showDemo(cam_color,cam_depth);
-		showObModel("final",cam_color, cam_depth, &position.at<float>(0, 0));
+		showObModel("final",cam_color, cam_depth, &position.at<float>(0, 0),"nosave");
+		
 		
 		
 		//line up
-		cv::moveWindow("cnn", 0, 0);
-		cv::moveWindow("cnn_dif", 640, 0);
+		//cv::moveWindow("cnn", 0, 0);
+		//cv::moveWindow("cnn_dif", 640, 0);
 		cv::moveWindow("final", 0, 480);
 		cv::moveWindow("final_dif", 640, 480);
 		//cv::moveWindow("initial", 640 * 3, 0);
+		
+
+		cv::waitKey(1);
+
 	}
 
 
@@ -335,22 +542,23 @@ public:
 					//boundary_track.at<float>(0, j) = boundary_max[0][j];   
 					//boundary_track.at<float>(1, j) = boundary_max[1][j];  
 
-					boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 30;
-					boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 30;
+					boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 20;
+					boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 20;
 				}
 			}
 
 			
 
 			//check limit of boundary
-			if (boundary_track.at<float>(0, j) <= boundary_max[0][j])
+			if (boundary_track.at<float>(0, j) < boundary_max[0][j])
 				boundary_track.at<float>(0, j) = boundary_max[0][j];
-			//else if (boundary_track.at<float>(0, j) >= boundary_max[1][j])
-			//	boundary_track.at<float>(0, j) = boundary_max[1][j];
 
-			if (boundary_track.at<float>(1, j) >= boundary_max[1][j])
+			if (boundary_track.at<float>(1, j) > boundary_max[1][j])
 				boundary_track.at<float>(1, j) = boundary_max[1][j];
-			//else if (boundary_track.at<float>(1, j) <= boundary_max[0][j])
+
+			//if (boundary_track.at<float>(1, j) > boundary_max[1][j])
+			//	boundary_track.at<float>(1, j) = boundary_max[1][j];
+			//if (boundary_track.at<float>(1, j) <= boundary_max[0][j])
 			//	boundary_track.at<float>(1, j) = boundary_max[1][j];
 			
 			
@@ -366,30 +574,34 @@ public:
 
 		for (int j = 0; j < dimension; j++){
 			if (j < fingerStartIdx){	
-				boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 20;  //palm
-				boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 20;
+				boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 10;  //palm
+				boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 10;
 			}
 			else if (j >= fingerStartIdx){
 				if ((j - fingerStartIdx) % 4 == 1){
+					//boundary_cnn.at<float>(0, j) = boundary_max[0][j];
+					//boundary_cnn.at<float>(1, j) = boundary_max[1][j];
+
 					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 5;
 					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 5;
+
 				}
 				else{
-					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 30;
-					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 30;
+					//boundary_cnn.at<float>(0, j) = boundary_max[0][j];
+					//boundary_cnn.at<float>(1, j) = boundary_max[1][j];
+
+					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 20;
+					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 20;
 				}
 			}
 
 			//check limit of boundary
 			if (boundary_cnn.at<float>(0, j) < boundary_max[0][j])
 				boundary_cnn.at<float>(0, j) = boundary_max[0][j];
-			//else if (boundary_cnn.at<float>(0, j) > boundary_max[1][j])
-			//	boundary_cnn.at<float>(0, j) = boundary_max[0][j];
 
 			if (boundary_cnn.at<float>(1, j) > boundary_max[1][j])
 				boundary_cnn.at<float>(1, j) = boundary_max[1][j];
-			//else if (boundary_cnn.at<float>(1, j) < boundary_max[0][j])
-			//	boundary_cnn.at<float>(1, j) = boundary_max[1][j];
+
 		}
 	}
 
@@ -404,8 +616,12 @@ public:
 			if (i == end_p - 1)
 				position.at<float>(i, j) = p.at<float>(0, j);// gbest_pre.at<float>(j, 0);
 			else
-				position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
+				position.at<float>(i, j) = frand_gaussian((b0 + b1) / 2, (b1 - b0)*0.3, b0, b1);
+				//position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
 		}
+
+		cv::Mat pp = position;
+		cv::waitKey(1);
 	}
 
 
@@ -420,8 +636,23 @@ public:
 			if (j >= fingerStartIdx)
 				position.at<float>(i, j) = p.at<float>(0, j);
 			else
-				position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
+				position.at<float>(i, j) = frand_gaussian((b0 + b1) / 2, (b1 - b0)*0.3, b0, b1);
+				//position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
 			//position.at<float>(j, i) = frand_gaussian(p.at<float>(j, 0), s, b0, b1);
+		}
+	}
+
+	void reinitializeFingers(int begin_p, int end_p, cv::Mat b){
+		for (int i = begin_p; i < end_p; i++)
+		{
+			int r = frand_uniform(0, 20);
+			int dr = 6 + r;
+
+			float b0 = b.at<float>(0, dr);
+			float b1 = b.at<float>(1, dr);
+			//position.at<float>(i, dr) = frand_gaussian((b0 + b1) / 2, (b1 - b0)*0.3, b0, b1);
+			position.at<float>(i, dr) = frand_uniform(b0, b1);
+			//position.at<float>(i, dr) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
 		}
 	}
 
@@ -436,13 +667,14 @@ public:
 			if (j < fingerStartIdx)
 				position.at<float>(i, j) = p.at<float>(0, j);
 			else
-				position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
+				position.at<float>(i, j) = frand_gaussian((b0 + b1) / 2, (b1 - b0)*0.3, b0, b1);
+				//position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
 		}
 	}
 
-	void initializeCost(){
+	void initializePcost(int ps,int pe){
 
-		for (int i = 0; i < particle_num; i++){
+		for (int i = ps; i < pe; i++){
 			cost_pbest.at<float>(0, i) = FLT_MAX;
 		}
 	}
@@ -474,8 +706,13 @@ public:
 				cost_gbest = min;
 				for (int j = 0; j < dimension; j++)
 					out.at<float>(0, j) = pbest.at<float>(i, j);
+
+				gbestIdx = i;
 			}
 		}
+
+		
+
 	}
 
 	void calculateVelocity(int ps, int pe, cv::Mat gmat, cv::Mat b){
@@ -488,8 +725,11 @@ public:
 		float r1, r2;
 		for (int i = ps; i < pe; i++)
 		for (int j = 0; j < dimension; j++){
-			r1 = rand() / double(RAND_MAX);
-			r2 = rand() / double(RAND_MAX);
+			//r1 = rand() / double(RAND_MAX);
+			//r2 = rand() / double(RAND_MAX);
+			r1 = frand_uniform(0, 1);
+			r2 = frand_uniform(0, 1);
+			
 
 			float v = pvel.at<float>(i, j);
 			float pb = pbest.at<float>(i, j);
@@ -531,8 +771,10 @@ public:
 		float r1, r2;
 		for (int i = ps; i < pe; i++)
 		for (int j = 0; j < dimension; j++){
-			r1 = rand() / double(RAND_MAX);
-			r2 = rand() / double(RAND_MAX);
+			//r1 = rand() / double(RAND_MAX);
+			//r2 = rand() / double(RAND_MAX);
+			r1 = frand_uniform(0, 1);
+			r2 = frand_uniform(0, 1);
 
 			float v = pvel.at<float>(i, j);
 			float pb = pbest.at<float>(i, j);
@@ -572,13 +814,26 @@ public:
 		{
 			if (j < fingerStartIdx)//palm
 				position.at<float>(i, j) = p.at<float>(0, j);// gbest_pre.at<float>(j, 0);
-			else//finger
+			else{
 				position.at<float>(i, j) += pvel.at<float>(i, j);
 
-			if (position.at<float>(i, j) < b.at<float>(0, j))
-				position.at<float>(i, j) = b.at<float>(0, j);
-			else if (position.at<float>(i, j) > b.at<float>(1, j))
-				position.at<float>(i, j) = b.at<float>(1, j);
+				if (position.at<float>(i, j) < b.at<float>(0, j)){
+					position.at<float>(i, j) = b.at<float>(0, j);
+					//pvel.at<float>(i, j) = -(rand() / double(RAND_MAX))*pvel.at<float>(i, j);
+					float r = frand_uniform(0, 1);
+					pvel.at<float>(i, j) = -r*pvel.at<float>(i, j);
+
+					position.at<float>(i, j) += pvel.at<float>(i, j);
+				}
+				else if (position.at<float>(i, j) > b.at<float>(1, j)){
+					position.at<float>(i, j) = b.at<float>(1, j);
+					//pvel.at<float>(i, j) = -(rand() / double(RAND_MAX))*pvel.at<float>(i, j);
+					float r = frand_uniform(0, 1);
+					pvel.at<float>(i, j) = -r*pvel.at<float>(i, j);
+
+					position.at<float>(i, j) += pvel.at<float>(i, j);			
+				}
+			}
 		}
 	}
 
@@ -599,34 +854,52 @@ public:
 		}
 	}
 
-	void updateAll(int begin_p, int end_p, cv::Mat b,cv::Mat& cs){
+
+	void updateAll(int begin_p, int end_p, cv::Mat b, cv::Mat& cs,std::string opt){
 
 		for (int i = begin_p; i < end_p; i++)
-		for (int j = 0; j < dimension; j++)
 		{
-			position.at<float>(i, j) += pvel.at<float>(i, j);
+			float w = 0;
+			if (cost.at<float>(0, i)< cost_pre.at<float>(0,i))
+				w = 1;
 
-			if (position.at<float>(i, j) < b.at<float>(0, j)){
-
-				position.at<float>(i, j) = b.at<float>(0, j);
-				pvel.at<float>(i, j) = -(rand() / double(RAND_MAX))*pvel.at<float>(i, j);
+			for (int j = 0; j < dimension; j++)
+			{
 				position.at<float>(i, j) += pvel.at<float>(i, j);
 
-				//collisionNumber.at<float>(0, j) += 1;
-				cs.at<float>(0, j) += 1;
-			}
-			if (position.at<float>(i, j) > b.at<float>(1, j)){
+				if (position.at<float>(i, j) < b.at<float>(0, j)){
 
-				position.at<float>(i, j) = b.at<float>(1, j);
+					position.at<float>(i, j) = b.at<float>(0, j);
+				
+					if (opt.compare("damping") == 0){
+						float r = frand_uniform(0, 1);
+						pvel.at<float>(i, j) = -r*pvel.at<float>(i, j);
+						position.at<float>(i, j) += pvel.at<float>(i, j);
+					}
+					
+					cs.at<float>(0, j) += 1;
+					//cs.at<float>(0, j) += w;
+				}
+				else if (position.at<float>(i, j) > b.at<float>(1, j)){
 
-				pvel.at<float>(i, j) = -(rand() / double(RAND_MAX))*pvel.at<float>(i, j);
-				position.at<float>(i, j) += pvel.at<float>(i, j);
+					position.at<float>(i, j) = b.at<float>(1, j);
 
-				//collisionNumber.at<float>(1, j) += 1;
-				cs.at<float>(1, j) += 1;
+					
+					if (opt.compare("damping") == 0){
+						float r = frand_uniform(0, 1);
+						pvel.at<float>(i, j) = -r*pvel.at<float>(i, j);
+						position.at<float>(i, j) += pvel.at<float>(i, j);
+					}
+
+
+					cs.at<float>(1, j) += 1;
+					//cs.at<float>(1, j) += w;
+				}
 			}
 		}
+
 	}
+
 
 	
 	void updateAll_backup(int begin_p, int end_p,cv::Mat b){
@@ -658,8 +931,21 @@ public:
 		}
 		glFinish();
 		
-
+		//data term
 		_costFunct.calculateCost(cost);
+
+
+		//cnn pose term
+		/*
+		for (int i = 0; i < particle_num; i++)
+		{
+			float cost_pose=0;
+			for (int j = 6; j < dimension; j++)	
+				cost_pose += abs(pose_cnn.at<float>(0, j) - position.at<float>(i, j))/(boundary_max[1][j]-boundary_max[0][j]);
+			cost.at<float>(0, i) +=cost_pose;
+		}
+		*/
+
 		//for (int px = 0; px < particle_numx; px++)
 		//for (int py = 0; py < particle_numy; py++)
 		//	printf("[%d][%d]=%f\n", py, px, cost.at<float>(0, px + py*particle_numx));
@@ -668,16 +954,7 @@ public:
 
 	}
 
-	void reinitialize(int ps, int pe, cv::Mat g, cv::Mat b){
-		for (int i = ps; i < pe; i++)
-		for (int j = 0; j < dimension; j++){
-			float b0 = b.at<float>(0, j);// boundary.at<float>(j, 0);
-			float b1 = b.at<float>(1, j);// boundary.at<float>(j, 1);
-
-			position.at<float>(i, j) = g.at<float>(0, j) + 0.5*(b1 - b0)*(rand() / double(RAND_MAX)) + b0;
-		}
-
-	}
+	
 
 	void showTextureFromCPU()
 	{
@@ -697,7 +974,7 @@ public:
 		cv::waitKey(1);
 	}
 
-	void showObModel(std::string wname,cv::Mat cam_color,cv::Mat cam_depth,float* solp)
+	void showObModel(std::string wname,cv::Mat cam_color,cv::Mat cam_depth,float* solp,std::string opt)
 	{
 		cv::Mat cam_depth_debug;
 		cam_depth.copyTo(cam_depth_debug);
@@ -735,8 +1012,83 @@ public:
 		cv::imshow(wname+"_dif", difdepth8u);
 		cv::waitKey(1);
 
+		if (opt.compare("save") == 0)
+		{
+			//result image
+			char filename[200];
+			sprintf(filename, "experiment/%d/result-%07u.png", experimentID,_frame);
+			cv::imwrite(filename, fimg);
+
+			//result cost
+			FILE* fp;
+			char filename1[200];
+			sprintf(filename, "experiment/method%d.csv", experimentID);
+			fp = fopen(filename, "a");
+			
+			char str[100];
+			sprintf(str, "%.2f\n", cost_gbest);
+			fputs(str, fp);
+			fclose(fp);
+		}
+
 	}
 
+	cv::Mat getObModelParticles()
+	{
+		//model
+		cv::Mat model_depth;
+		_glrenderer.getDepthTexture(model_depth);
+
+		//observation
+		cv::Mat omat = _costFunct.getTiledImages();
+
+		int w = omat.size().width;
+		int h = omat.size().height;
+
+		//visualize 3color
+		cv::Mat o_3c = cv::Mat(h, w, CV_8UC3);
+		cv::Mat m_3c = cv::Mat(h, w, CV_8UC3);
+		cv::Mat om_3c = cv::Mat(h, w, CV_8UC3);
+		o_3c.setTo(0);
+		m_3c.setTo(0);
+
+
+		for (int i = 0; i < w; i++)
+		for (int j = 0; j < h; j++){
+			if (model_depth.at<float>(j, i) != 0)
+			{
+				m_3c.at <unsigned char>(j, 3 * i + 0) = 0;
+				m_3c.at <unsigned char>(j, 3 * i + 1) = 0;
+				m_3c.at <unsigned char>(j, 3 * i + 2) = 255;
+			}
+			if (omat.at<float>(j, i) != 0)
+			{
+				o_3c.at <unsigned char>(j, 3 * i + 0) = 255;
+				o_3c.at <unsigned char>(j, 3 * i + 1) = 0;
+				o_3c.at <unsigned char>(j, 3 * i + 2) = 0;
+			}
+		}
+		cv::addWeighted(o_3c, 0.5, m_3c, 0.5, 0, om_3c);
+
+		//write the likelihood as text
+		int w_one = w / particle_numx;
+		int h_one = h / particle_numy;
+		CvFont font;
+		cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX | CV_FONT_ITALIC, 0.4, 0.4, 0, 1);
+		char text_c[100];
+		for (int i = 0; i < particle_numx; i++)
+		for (int j = 0; j < particle_numy; j++){
+
+			sprintf(text_c, "%.3f", cost.at<float>(0, i + particle_numx*j));
+			cv::putText(om_3c, text_c, cvPoint(w_one*i + 20, h_one*j + 30), 1, 2, cv::Scalar(255, 255, 0));
+
+			//sprintf(text_c, "l:%.4f", weight[m].at<float>(0, i + particle_numx*j));
+			//cv::putText(om_3c, text_c, cvPoint(w_one*i + 20, h_one*j + 30), 1, 1, cv::Scalar(255, 255, 0));
+		}
+
+		return om_3c;
+
+	}
 
 	cv::Mat showObModelParticles(const char* wname,std::string saveopt,int g)
 	{
@@ -811,22 +1163,16 @@ public:
 		return om_3c;
 	}
 
-	float frand_gaussian(float a, float std, float lo, float hi) const{
-		std::normal_distribution<float> distribution(0, std);
-
-		while (true) {
-			float number = distribution(*gen_gaussian);
-			float result = a + number*(hi - lo);
-
-			if (result >= lo && result <= hi)
-				return result;
-		}
-	}
 
 	void updateResource(){
 
 	}
 
+	void getTruePose(float* out){
+		for (int i = 0; i < dimension; i++)
+			out[i] = truepose.at<float>(0, i);
+
+	}
 	void setTruePose(float* in){
 
 		for (int i = 0; i < dimension; i++)
@@ -849,82 +1195,438 @@ public:
 	}
 
 
-	void updateBoundary(int g,cv::Mat& coll,cv::Mat& bmat){
+	float calculateAverage(cv::Mat in,int jid,int ps,int pe)
+	{
+		float avg = 0;
+		for (int i = ps;i<pe;i++)
+		{
+			avg+=in.at<float>(i, jid);
+		}
+		avg /= (pe - ps);
 
-		float alpha = 0.5;
-		float pitr = 5.0;
-		int T1 = 1;
-		int T2 = 2;
+		return avg;
+	}
+
+	float calculateSTDEV(cv::Mat in, int jid, int avg, int ps, int pe){
+
+		float s = 0;
+		for (int i = ps; i < pe; i++){
+			float p = in.at<float>(i, jid);
+			s += p*p;
+		}
+		s /= (pe - ps);
+
+		float stdev = sqrt(s - avg*avg);
+
+		return stdev;
+	}
+
+	int checkUpperBoundary(int jid,float avg,float stdev)
+	{
+		float best = gbest.at<float>(0, jid);
+		float a = exp(-(best - avg)*(best - avg) / (2*stdev*stdev));
+
+		printf("check upper boundary\n");
+		printf("up:%f gbest:%f\n", avg + sqrt(-2 * stdev*stdev*log(a)), best);
+		if (avg + sqrt(-2 * stdev*stdev*log(a)) < best)
+			return 1;
+
+		return 0;
+
+	}
+
+	int checkLowerBoundary(int jid,float avg,float stdev)
+	{
+		float best = gbest.at<float>(0, jid);
+		float a = exp(-(best - avg)*(best - avg) / (2 * stdev*stdev));
+
+		printf("check lower boundary\n");
+		printf("lower:%f gbest:%f\n", avg - sqrt(-2 * stdev*stdev*log(a)), best);
+
+		if (best < avg - sqrt(-2 * stdev*stdev*log(a)) )
+			return 1;
+
+		return 0;
+	}
+
+
+	//modified updateBoundary (according to gbest)
+	void updateBoundary3(float jid,float avg,float stdev,cv::Mat& bmat)
+	{	
+		float best = gbest.at<float>(0, jid);
+
+		float a = exp(-(best - avg)*(best - avg) / (2 * stdev*stdev));
+
+		//new boundary
+		bmat.at<float>(0,jid) = avg + sqrt(-2 * stdev*stdev*log(a));
+		bmat.at<float>(1,jid) = avg - sqrt(-2 * stdev*stdev*log(a));
+
+	}
+
+	// original updateBoundary (change specific dimension)
+	void updateBoundary2(int j,cv::Mat& coll,cv::Mat& bmat,float alpha){
+
+		float pitr = 10.0;// bound_pitr;// 5.0;
+		int T1 = 1;// bound_T1;      // 1;
+		int T2 = 2;// T1 * 2;        // 2;
+
+		//--adapt boundary--//
+		//float alpha = 0.5;
+
+		float bl = bmat.at<float>(0, j);
+		float bu = bmat.at<float>(1, j);
+
+		float mlow = coll.at<float>(0, j);
+		float mup = coll.at<float>(1, j);
+
+		//lower boundary.
+		if (mlow==0 || mlow / pitr < T1){
+			bmat.at<float>(0, j) += alpha*(bu - bl);
+			coll.at<float>(0, j) = 0;
+		}
+		else if (mlow / pitr > T2){
+			bmat.at<float>(0, j) -= alpha*(bu - bl);
+			coll.at<float>(0, j) = 0;
+		}
+
+		//upper boundary.
+		if (mup==0 || mup / pitr < T1){
+			bmat.at<float>(1, j) -= alpha*(bu - bl);
+			coll.at<float>(1, j) = 0;
+		}
+		else if (mup / pitr > T2){
+			bmat.at<float>(1, j) += alpha*(bu - bl);
+			coll.at<float>(1, j) = 0;
+		}
+		
+
+		// keep the boundary when the gap between lower and upper one is too narrowed.
+		float bl2 = bmat.at<float>(0, j);
+		float bu2 = bmat.at<float>(1, j);
+
+		float bminconst = boundary_const.at<float>(0, j);
+		float bmaxconst = boundary_const.at<float>(1, j);
+
+		if ((bl2 >= bu2) || abs(bl2 - bu2)< 5)
+		{
+			bmat.at<float>(0, j) = bl;
+			bmat.at<float>(1, j) = bu;
+		}
+
+		//check limit of boundary
+		if (bmat.at<float>(0, j) < boundary_max[0][j])
+			bmat.at<float>(0, j) = boundary_max[0][j];
+
+		if (bmat.at<float>(1, j) > boundary_max[1][j])
+			bmat.at<float>(1, j) = boundary_max[1][j];
+
+	}
+
+	//original updateBoundary (update all dimensions)
+	void updateBoundary(int g, cv::Mat& coll, cv::Mat gmat, cv::Mat& bmat, int opt){
+
+		float pitr = bound_pitr;// 5.0;
+		int T1 = bound_T1;      // 1;
+		int T2 = T1 * 2;        // 2;
 
 		cv::Mat bt_before;
 		bmat.copyTo(bt_before);
 
-		if ((g > 0) &  (g % 5) == 0){
+		//adapt boundary	
+		float alpha = 0.5;
 
-			for (int j = 0; j < dimension; j++){
-				float bl = bmat.at<float>(0, j);
-				float bu = bmat.at<float>(1, j);
+		for (int j = 0; j < dimension; j++){
+			if (j >= fingerStartIdx && (j - fingerStartIdx) % 4 == 1)
+				continue;
 
-				float mlow = coll.at<float>(0, j);
-				float mup = coll.at<float>(1, j);
 
-				//printf("%f %f \n", mlow / pitr, mup / pitr);
-				//lower boundary.
-				if (mlow / pitr < T1){
-					bmat.at<float>(0, j) += alpha*(bu - bl);
-					//printf("++lower bound[%d]\n", j);
-				}
-				if (mlow / pitr > T2){
-					bmat.at<float>(0, j) -= alpha*(bu - bl);
-					//printf("--lower bound[%d]\n", j);
-				}
+			float bl = bmat.at<float>(0, j);
+			float bu = bmat.at<float>(1, j);
 
-				//upper boundary.
-				if (mup / pitr > T2){
-					bmat.at<float>(1, j) += alpha*(bu - bl);
-					//printf("++upperr bound[%d]\n", j);
-				}
-				if (mup / pitr < T1){
-					bmat.at<float>(1, j) -= alpha*(bu - bl);
-					//printf("++upper bound[%d]\n", j);
-				}
+			float mlow = coll.at<float>(0, j);
+			float mup = coll.at<float>(1, j);
+			
+			//lower boundary.
+			if (mlow / pitr < T1){	
+				bmat.at<float>(0, j) += alpha*(bu - bl);
+	
+			}
+			if (mlow / pitr > T2){				
+				bmat.at<float>(0, j) -= alpha*(bu - bl);
+		
+			}
 
-				// keep the boundary when the gap between lower and upper one is too narrowed.
-				float bl2 = bmat.at<float>(0, j);
-				float bu2 = bmat.at<float>(1, j);
+			//upper boundary.
+			if (mup / pitr > T2){	
+				bmat.at<float>(1, j) += alpha*(bu - bl);
 
-				if ((bl2>bu2) || (bl2 == bu2))
-				{
-					bmat.at<float>(0, j) = bl;
-					bmat.at<float>(1, j) = bu;
-				}
+			}
+			if (mup / pitr < T1){
+				bmat.at<float>(1, j) -= alpha*(bu - bl);
 
 			}
 
-			cv::Mat pp = position;
-			cv::Mat ppgbest = gbest;
-			cv::Mat pptrue = truepose;
+			// keep the boundary when the gap between lower and upper one is too narrowed.
+			
+			float bl2 = bmat.at<float>(0, j);
+			float bu2 = bmat.at<float>(1, j);
 
-			cv::Mat bb = bmat;
-			cv::Mat collision = coll;
-
-			for (int j = 0; j < dimension; j++){
-				debugmatrix.at<float>(0, j) = coll.at<float>(0, j);
-				debugmatrix.at<float>(1, j) = bmat.at<float>(0, j) - truepose.at<float>(0, j);
-				debugmatrix.at<float>(2, j) = gbest.at<float>(0, j) - truepose.at<float>(0, j);
-				debugmatrix.at<float>(3, j) = bmat.at<float>(1, j) - truepose.at<float>(0, j);
-				debugmatrix.at<float>(4, j) = coll.at<float>(1, j);
-
+		
+			float bminconst = boundary_const.at<float>(0, j);
+			float bmaxconst = boundary_const.at<float>(1, j);
+			
+			if ((bl2>=bu2) || abs(bl2-bu2)< 5)
+			{
+				bmat.at<float>(0, j) = bl;
+				bmat.at<float>(1, j) = bu;
 			}
+			
+			//check limit of boundary
+			if (bmat.at<float>(0, j) < boundary_max[0][j])
+				bmat.at<float>(0, j) = boundary_max[0][j];
 
-			cv::Mat dd = debugmatrix;
-			coll.setTo(0);
+			if (bmat.at<float>(1, j) > boundary_max[1][j])
+				bmat.at<float>(1, j) = boundary_max[1][j];
+			
 
 		}
+
+
+		
+		/*
+		cv::Mat pp;
+		position.copyTo(pp);
+
+
+		cv::Mat ppgbest = gbest;
+		cv::Mat pptrue = truepose;
+
+		cv::Mat bbtrack = boundary_track;
+		cv::Mat bbcnn = boundary_cnn;
+		cv::Mat colltrack = collisionNumber_track;
+		cv::Mat collcnn = collisionNumber_cnn;
+
+		cv::Mat vv = pvel;
+
+			
+		for (int j = 0; j < dimension; j++){
+			debugmatrix.at<float>(0, j) = colltrack.at<float>(0, j);
+			debugmatrix.at<float>(1, j) = bbtrack.at<float>(0, j) - truepose.at<float>(0, j);
+			debugmatrix.at<float>(2, j) = gbest.at<float>(0, j) - truepose.at<float>(0, j);
+			debugmatrix.at<float>(3, j) = bbtrack.at<float>(1, j) - truepose.at<float>(0, j);
+			debugmatrix.at<float>(4, j) = colltrack.at<float>(1, j);
+				
+			debugmatrix.at<float>(5, j) = 0;
+
+			debugmatrix.at<float>(6, j) = collcnn.at<float>(0, j);
+			debugmatrix.at<float>(7, j) = bbcnn.at<float>(0, j) - truepose.at<float>(0, j);
+			debugmatrix.at<float>(8, j) = gbest.at<float>(0, j) - truepose.at<float>(0, j);
+			debugmatrix.at<float>(9, j) = bbcnn.at<float>(1, j) - truepose.at<float>(0, j);
+			debugmatrix.at<float>(10, j) = collcnn.at<float>(1, j) ;
+				
+				
+		}	
+		if (opt == 1){
+			cv::Mat dd = debugmatrix;
+
+			cv::Mat img;
+			img = getObModelParticles();
+			cv::waitKey(1);
+		}
+		*/
+
+		coll.setTo(0);	
 	}
 
+	
+
+	void debugParticles(int g){
+		
+		
+
+		cv::Mat sortid;
+		cv::Mat cost0 = cv::Mat(1, particle_num / 2, CV_32FC1);
+		cv::Mat cost1 = cv::Mat(1, particle_num / 2, CV_32FC1);
+		for (int i = 0; i < particle_num/2; i++)
+			cost0.at<float>(0, i) = cost.at<float>(0, i);
+		for (int i = particle_num/2; i < particle_num; i++)
+			cost1.at<float>(0, i-particle_num/2) = cost.at<float>(0, i);
+
+		cv::sortIdx(cost0, sortid, CV_SORT_EVERY_ROW + CV_SORT_ASCENDING);
+		int sortidgood0 = sortid.at<int>(0, 0);
+
+		cv::sortIdx(cost1, sortid, CV_SORT_EVERY_ROW + CV_SORT_ASCENDING);
+		int sortidgood1 = sortid.at<int>(0, 0);
+
+		int imgwpre=0;
+		int imgw = 0;
+		int w = 0;
+		int dw = 0;
+		
+		for (int j = 0; j < dimension; j++){
+			/*
+			imgw = 20 + boundary_max[1][j] - boundary_max[0][j]; //300;
+			w = boundary_max[1][j] - boundary_max[0][j];//256;
+			dw = 20;
+			*/
+			imgw = 300;
+			w = 256;
+			dw = 20;
+
+			cv::Mat img = cv::Mat(particle_num, imgw, CV_8UC3);
+			img.setTo(0);
+
+			
+			int jid = j;
+
+			float xtrue = truepose.at<float>(0, jid);
+			float b_track_min;
+			float b_track_max;
+			float b_cnn_min;
+			float b_cnn_max;
+			float bmin;
+			float bmax;
+
+			for (int i = 0; i < particle_num; i++)
+			{
+				
+				float x = position.at<float>(i, jid);
+				xtrue = truepose.at<float>(0, jid);
+				b_track_min = boundary_track.at<float>(0, jid);
+				b_track_max = boundary_track.at<float>(1, jid);
+				b_cnn_min = boundary_cnn.at<float>(0, jid);
+				b_cnn_max = boundary_cnn.at<float>(1, jid);
+
+				bmin = boundary_max[0][jid];
+				bmax = boundary_max[1][jid];
+
+				xtrue = w * (xtrue - bmin) / (bmax - bmin);
+				x =  w * (x - bmin) / (bmax - bmin);
+				b_track_min =  w * (b_track_min - bmin) / (bmax - bmin);
+				b_track_max =  w * (b_track_max - bmin) / (bmax - bmin);
+				b_cnn_min =  w * (b_cnn_min - bmin) / (bmax - bmin);
+				b_cnn_max =  w * (b_cnn_max - bmin) / (bmax - bmin);
+
+				//true
+				img.at<uchar>(i, 3 * int(xtrue) + 0) = 255;
+				img.at<uchar>(i, 3 * int(xtrue) + 1) = 255;
+				img.at<uchar>(i, 3 * int(xtrue) + 2) = 255;
+				
+				//boundary_track
+				img.at<uchar>(i / 5, 3 * int(b_track_min) + 0) = 255;
+				img.at<uchar>(i / 5, 3 * int(b_track_min) + 1) = 0;
+				img.at<uchar>(i / 5, 3 * int(b_track_min) + 2) = 0;
 
 
+				img.at<uchar>(i / 5, 3 * int(b_track_max) + 0) = 0;
+				img.at<uchar>(i / 5, 3 * int(b_track_max) + 1) = 0;
+				img.at<uchar>(i / 5, 3 * int(b_track_max) + 2) = 255;
+
+				//boundary_cnn
+				img.at<uchar>(particle_num / 2 + i / 5, 3 * int(b_cnn_min) + 0) = 255;
+				img.at<uchar>(particle_num / 2 + i / 5, 3 * int(b_cnn_min) + 1) = 0;
+				img.at<uchar>(particle_num / 2 + i / 5, 3 * int(b_cnn_min) + 2) = 0;
+
+				img.at<uchar>(particle_num / 2 + i / 5, 3 * int(b_cnn_max) + 0) = 0;
+				img.at<uchar>(particle_num / 2 + i / 5, 3 * int(b_cnn_max) + 1) = 0;
+				img.at<uchar>(particle_num / 2 + i / 5, 3 * int(b_cnn_max) + 2) = 255;
+
+				//particle
+				
+				if (i == sortidgood0 || i==(particle_num/2+sortidgood1)){
+					
+					if (i==gbestIdx)
+						cv::circle(img, cv::Point(x, i), 3, cv::Scalar(255, 255, 255), 1, 8, 0);
+					else
+						cv::circle(img, cv::Point(x, i), 3, cv::Scalar(0, 255, 255), 1, 8, 0);
+				}
+				else{
+					img.at<uchar>(i, 3 * int(x) + 0) = 0;
+					img.at<uchar>(i, 3 * int(x) + 1) = 255;
+					img.at<uchar>(i, 3 * int(x) + 2) = 0;
+				}
+					
+				
+			}
+
+			//write the number of collision 
+				//tracking particle's collision 
+			{
+				char text_c[100];
+				sprintf(text_c, "%d", int(collisionNumber_track.at<float>(0, j)));
+				cv::putText(img, text_c, cvPoint(0 ,10 ), 1, 1.0, cv::Scalar(255, 255, 0));
+				
+				sprintf(text_c, "%d", int(collisionNumber_track.at<float>(1, j)));
+				cv::putText(img, text_c, cvPoint(w-5, 10), 1, 1.0, cv::Scalar(255, 255, 0));
+			}
+				//cnn particle's collision 
+			{
+				char text_c[100];
+				sprintf(text_c, "%d", int(collisionNumber_cnn.at<float>(0, j)));
+				cv::putText(img, text_c, cvPoint(0, 50), 1, 1.0, cv::Scalar(255, 255, 0));
+
+				sprintf(text_c, "%d", int(collisionNumber_cnn.at<float>(1, j)));
+				cv::putText(img, text_c, cvPoint(w-5, 50), 1, 1.0, cv::Scalar(255, 255, 0));
+			}
+
+
+			//show and arrange window
+			char wname[100];
+			sprintf(wname, "dim%d", j);
+			cv::imshow(wname, img);
+		
+			
+			if (j<fingerStartIdx)
+				cv::moveWindow(wname, (imgwpre + dw), 0);
+			else if (j>=6 && j < 10)
+				cv::moveWindow(wname, (imgwpre + dw), 100);
+			else if (j>=10 && j < 14)
+				cv::moveWindow(wname, (imgwpre + dw), 200);
+			else if (j>=14 && j < 18)
+				cv::moveWindow(wname, (imgwpre + dw), 300);
+			else if (j>=18 && j < 22)
+				cv::moveWindow(wname, (imgwpre + dw), 400);
+			else if (j>=22 && j < 26)
+				cv::moveWindow(wname, (imgwpre + dw), 500);
+			
+			imgwpre += imgw;
+			if (j == 5 || j == 9 || j == 13 || j == 17 || j == 21)
+				imgwpre = 0;
+
+			cv::waitKey(1);
+
+			//result image 
+			char filename[200];
+			sprintf(filename, "experiment/result%d_%d.png",j,g);
+			cv::imwrite(filename, img);
+		}
+
+	}
+
+	void saveJoints(int frame){
+
+		//label (26D pose)
+		{
+			FILE* fp;
+			char filenamel[200];
+			sprintf(filenamel, "save/sequence/label/label26D_%d.txt",frame);
+			fp = fopen(filenamel, "w");
+
+			char str[100];
+			float jpos[26];
+			for (int j = 0; j < dimension; j++)
+				jpos[j] = gbest.at<float>(0, j);
+
+			for (int i = 0; i < 26; i++)
+			{
+
+				sprintf(str, "%.2f\n", jpos[i]);
+
+				fputs(str, fp);
+			}
+			fclose(fp);
+		}
+	}
 
 	//variable
 
@@ -946,12 +1648,16 @@ public:
 	cv::Mat position;
 	cv::Mat pbest;
 	
-	cv::Mat gbest_part[2];
 	cv::Mat gbest_pre;
+	cv::Mat gbest_track;
+	cv::Mat gbest_cnn;
 	
 	cv::Mat pvel;
 	cv::Mat boundary_track, boundary_cnn, boundary_const;
 	cv::Mat cost;//
+	cv::Mat cost_pre;
+	cv::Mat cost_dif;//
+
 	cv::Mat cost_pbest;
 	cv::Mat pose_cnn;
 	float cost_gbest;
@@ -959,8 +1665,7 @@ public:
 	cv::Mat cov_track;
 	cv::Mat cov_cnn;
 
-	std::mt19937* gen_gaussian;
-
+	
 	double miliSec;
 	//Watch watch;
 
@@ -970,8 +1675,52 @@ public:
 
 	cv::Mat collisionNumber_track;
 	cv::Mat collisionNumber_cnn;
+	//cv::Mat position_avg;
+	//cv::Mat position_stdev;
 
 	cv::Mat truepose;
 
 	cv::Mat debugmatrix;
+	cv::Mat debug_Particleimage;
+
+	//hyper parameter for floating boundary
+	float bound_alpha0;
+	float bound_alpha1;
+	int experimentID;
+	int _frame;
+
+	float bound_pitr;
+	int bound_T1;
+	int bound_T2;
+
+
+	int gbestIdx;
+
+	//random
+	std::mt19937 mutable gen_gaussian; //random geneartor (gaussian)
+	std::mt19937 mutable gen_uniform;
+
+	float frand_gaussian(float a, float std, float lo, float hi) const{
+		std::normal_distribution<float> distribution(0, std);
+
+		while (true) {
+			float number = distribution(gen_gaussian);
+			float result = a + number*(hi - lo);
+
+			if (result >= lo && result <= hi)
+				return result;
+		}
+	}
+
+	float frand_uniform(float lo, float hi) const{
+	
+		std::uniform_real_distribution<float> distribution(lo, hi);
+
+		
+		float result=distribution(gen_uniform);
+
+		return result;	
+	}
+
 };
+

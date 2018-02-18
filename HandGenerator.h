@@ -45,7 +45,7 @@ class HandGenerator{
 				wval_tb[0] = 127;// 50;
 				wval_tb[1] = 51;// 20;
 				wval_tb[2] = 127;// 50;
-				wval_tb[3] = 191;// 75;
+				wval_tb[3] = 166;// 75;
 				wval_tb[4] = 127;// 50;
 				wval_tb[5] = 127;// 50;
 				for (int i = 0; i < 15;i++)
@@ -248,7 +248,47 @@ class HandGenerator{
 		float fval_a[15][3];
 		float fval_b[15][3];
 
+		//sequence around pose(a).
 		int run_sequence(){
+
+			//pose(a)
+			if (poseidx == 0){
+				_trackbar.load(classid);
+				_trackbar.run();
+
+				for (int j = 0; j < 6; j++)
+					wval_a[j] = _trackbar.wval[j];
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_a[i][j] = _trackbar.fval[i][j];
+			}
+			
+			
+			for (int j = 0; j < 6; j++)
+				_trackbar.wval[j] = wval_a[j] - 10 + 20 * rand() / double(RAND_MAX);
+
+			
+			for (int i = 0; i < 15; i++)
+			for (int j = 0; j < 3; j++)
+				_trackbar.fval[i][j] = fval_a[i][j];
+			
+
+			//
+			poseidx++;
+			
+
+			if (poseidx == 10){
+				poseidx = 0;
+				classid += 1;
+			}
+			if (classid == 25)
+				return -1;
+
+			return 0;
+		}
+
+		//sequence between pose(a) and pose(b)
+		int run_sequence_backup(){
 
 			//pose(a)
 			if (poseidx == 0){
@@ -294,11 +334,17 @@ class HandGenerator{
 		}
 
 		int test(){
-			if (cv::waitKey(1) == 'p'){
-					
+			//if (cv::waitKey(1) == 'p'){
+				
+			/*
 				classid++;
 				if (classid == 26)
 					classid = 0;
+			*/
+			
+			//classid = 3;
+			classid = 7;
+
 
 				printf("classid:%d\n", classid);
 				_trackbar.load(classid);
@@ -307,7 +353,7 @@ class HandGenerator{
 				//_trackbar.wval[3] += 0;
 				//_trackbar.fval[0][0] += 30;
 
-			}
+			//}
 			
 			return 0;
 		}
@@ -491,6 +537,114 @@ public:
 		setPose(in);
 		hand.setViewport(640, 480);
 		hand.Render(in[3], in[4], in[5], false, in[0], in[1], in[2],vistype);
+	}
+
+	void showJoints(cv::Mat cam_color, cv::Mat cmat){
+
+		std::vector<float> jpos;
+		hand.GetJointAllPosition(&jpos);
+
+		int idx[20] = { 1, 2, 3, 4,
+			6, 7, 8, 9,
+			11, 12, 13, 14,
+			16, 17, 18, 19,
+			21, 22, 23, 24 };
+		int color[5][3] = { { 255, 0, 0 }, { 0, 255, 0 }, { 0, 0, 255 }, { 255, 255, 0 }, { 255, 255, 255 } };
+
+		for (int i = 0; i < 20; i++)
+		{
+			int jid = idx[i];
+
+			float x = jpos[3 * jid + 0];
+			float y = jpos[3 * jid + 1];
+			float z = jpos[3 * jid + 2];
+
+			float x_ = x * cmat.at<float>(0, 0) + y * cmat.at<float>(0, 1) + z * cmat.at<float>(0, 2);
+			float y_ = x * cmat.at<float>(1, 0) + y * cmat.at<float>(1, 1) + z * cmat.at<float>(1, 2);
+			float z_ = x * cmat.at<float>(2, 0) + y * cmat.at<float>(2, 1) + z * cmat.at<float>(2, 2);
+			x_ /= z_;
+			y_ /= z_;
+
+			cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(color[i / 4][0], color[i / 4][1], color[i / 4][2]), 5, 8, 0);
+
+		}
+		cv::imshow("groundtruth", cam_color);
+		
+		//
+		/*
+		for (int i = 0; i < 5; i++){
+		for (int j = 0; j < 3; j++){
+		float jpos[3];
+		hand.GetJointPosition(i, j, jpos);
+
+		float x_ = jpos[0] * cmat.at<float>(0, 0) + jpos[1] * cmat.at<float>(0, 1) + jpos[2] * cmat.at<float>(0, 2);
+		float y_ = jpos[0] * cmat.at<float>(1, 0) + jpos[1] * cmat.at<float>(1, 1) + jpos[2] * cmat.at<float>(1, 2);
+		float z_ = jpos[0] * cmat.at<float>(2, 0) + jpos[1] * cmat.at<float>(2, 1) + jpos[2] * cmat.at<float>(2, 2);
+		x_ /= z_;
+		y_ /= z_;
+		cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(255, 255, 255), 5, 8, 0);
+		//printf("g[%d]: x:%f y:%f z:%f\n", i*3+j, jpos[0] - com_hand[0], jpos[1] - com_hand[1], jpos[2] - com_hand[2]);
+		}
+		}
+		cv::imshow("groundtruth", cam_color);
+		*/
+	}
+
+	void saveJoints(){
+		
+		//label (joints position)
+		/*
+		{
+			FILE* fp;
+			char filenamel[200];
+			sprintf(filenamel, "save/cnn/test/label/label.csv");
+			fp = fopen(filenamel, "a");
+
+			char str[100];
+
+			for (int i = 0; i < 5; i++)
+			for (int j = 0; j < 3; j++){
+			float jpos[3];
+			hand.GetJointPosition(i, j, jpos);
+
+			for (int k = 0; k < 3; k++)
+			jpos[k] = com_hand[k] - jpos[k];
+
+			if (i == 4 & j == 2)
+				sprintf(str, "%.2f,%.2f,%.2f\n", jpos[0], jpos[1], jpos[2]);
+			else
+				sprintf(str, "%.2f,%.2f,%.2f,", jpos[0], jpos[1], jpos[2]);
+
+			fputs(str, fp);
+			}
+
+			fclose(fp);
+		}
+		*/
+
+		//label (26D pose)
+		{
+			FILE* fp;
+			char filenamel[200];
+			//sprintf(filenamel, "save/cnn26D/train/label/label26D.csv");
+			sprintf(filenamel, "save/sequence/label/label26D.csv");
+			fp = fopen(filenamel, "a");
+
+			char str[100];
+			float jpos[26];
+			getHandPose(jpos);
+
+			for (int i = 0; i < 26; i++)
+			{
+				if (i == 25)
+					sprintf(str, "%.2f\n", jpos[i]);
+				else
+					sprintf(str, "%.2f,", jpos[i]);
+
+				fputs(str, fp);
+			}
+			fclose(fp);
+		}
 	}
 
 

@@ -38,15 +38,20 @@ public:
 
 	int queryFrames(int framein){
 		//color read
-		
 		char filename[200];
-		sprintf(filename, "save/cnn26D/test/data/color-%07u.png", framein);
+		sprintf(filename, "save/sequence/data/color-%07u.png", framein);
 		rgb = cv::imread(filename, 1);
-		
+		if (rgb.empty())
+			return false;
+
+			
+
 		//depth read
-		
-		sprintf(filename, "save/cnn26D/test/data/depth-%07u.png",  framein);
+		sprintf(filename, "save/sequence/data/depth-%07u.png",  framein);
 		depth = cv::imread(filename, 2);	
+		if (depth.empty())
+			return false;
+	
 		//sprintf(filename, "save/cnn/train/data/depth-%07u.png", framein);
 		//depth = cv::imread(filename, 2);
 		

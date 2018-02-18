@@ -209,11 +209,14 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 	// Initialize the meshes in the scene one by one
 	const aiVector3D Zero3D(0.0f, 0.0f, 0.0f);
 
+
 	for (unsigned int i = 0; i < input_scene->mMeshes[0]->mNumVertices; i++)
 	{
 		const aiVector3D* pPos = &(input_scene->mMeshes[0]->mVertices[i]);
 		const aiVector3D* pNormal = &(input_scene->mMeshes[0]->mNormals[i]);
-		const aiVector3D* pTexCoord = input_scene->mMeshes[0]->HasTextureCoords(0) ? &(input_scene->mMeshes[0]->mTextureCoords[0][i]) : &Zero3D;
+		//const aiVector3D* pTexCoord = input_scene->mMeshes[0]->HasTextureCoords(0) ? &(input_scene->mMeshes[0]->mTextureCoords[0][i]) : &Zero3D;
+		const aiVector3D* pTexCoord = &(input_scene->mMeshes[0]->mTextureCoords[0][i]);
+
 
 		Positions.push_back(pPos->x);
 		Positions.push_back(pPos->y);
@@ -221,11 +224,13 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 
 		TexCoords.push_back(pTexCoord->x);
 		TexCoords.push_back(pTexCoord->y);
+		//printf("vertex x:%f y:%f z:%f\n", pPos->x, pPos->y, pPos->z);
+		//printf("texture x:%f y:%f\n", pTexCoord->x, pTexCoord->y);
 	}
 #pragma endregion
 
 	//std::cout << "LoadData2" << std::endl;
-
+	//printf("size:%d\n", input_scene->mMeshes[0]->mNumVertices);
 #pragma region LoadBones(MeshIndex, input_scene->mMeshes[0], Bones);
 	//printf("initialize bone\n");
 	//printf("mnumbones:%d\n", input_scene->mMeshes[0]->mNumBones);
@@ -233,7 +238,7 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 	{
 		int BoneIndex = 0;
 		std::string BoneName(input_scene->mMeshes[0]->mBones[i]->mName.data);
-		printf("[%d]bonename:%s\n", i,BoneName);
+		//printf("[%d]bonename:%s\n", i,BoneName);
 		if (bone_map.find(BoneName) == bone_map.end())
 		{
 			// Allocate an index for a new bone
@@ -948,7 +953,7 @@ void Hand::Render(float r_x, float r_y, float r_z, bool cont_rot, float wx, floa
 
 
 	
-	matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(13, 13, 13);//15
+	matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(12, 11, 13);//(13,13,13)
 	matrix_translation = Matrix4f::MakeTranslationMatrix(wx, wy,wz);
 	matrix_modelViewProj = matrix_projection * matrix_translation * matrix_model;
 	matrix_modelView = matrix_translation*matrix_model;

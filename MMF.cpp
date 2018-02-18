@@ -47,6 +47,20 @@ MMF::MMF(int w, int h){
 	//memory
 	DL_result = new float[DATA_LEN2];
 
+
+	//initial read
+	// 매핑 파일 열기
+	hMapRead = OpenFileMappingA(FILE_MAP_READ,
+		FALSE,
+		"LearningResult");
+
+	// 파일에 매핑하기
+	lpMapping_receive = (float*)MapViewOfFile(hMapRead,
+		FILE_MAP_READ,
+		0,
+		0,
+		0);
+
 	//??
 	getimg_bool = false;
 }
