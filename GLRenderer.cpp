@@ -173,9 +173,9 @@ void GLRenderer::getOrigImage(cv::Mat& out,std::string type)
 		getColorTexture(final_model2);
 
 		cv::Mat final_model = cv::Mat(height_orig, width_orig, CV_32FC3);
-		cv::Rect rect(0, height_fb - height_orig - 1, width_orig, height_orig);
-		final_model = final_model2(rect);
-		//cv::resize(final_model2, final_model, cv::Size(width_orig, height_orig), 0, 1);
+		//cv::Rect rect(0, height_fb - height_orig - 1, width_orig, height_orig);
+		//final_model = final_model2(rect);
+		cv::resize(final_model2, final_model, cv::Size(width_orig, height_orig), 0, 1);
 	
 		final_model.copyTo(out);
 	}
@@ -185,9 +185,9 @@ void GLRenderer::getOrigImage(cv::Mat& out,std::string type)
 		getDepthTexture(final_model2);
 
 		cv::Mat final_model = cv::Mat(height_orig, width_orig, CV_32FC1);
-		cv::Rect rect(0, height_fb - height_orig - 1, width_orig, height_orig);
-		final_model = final_model2(rect);
-		//cv::resize(final_model2, final_model, cv::Size(width_orig, height_orig), 0, 1);
+		//cv::Rect rect(0, height_fb - height_orig - 1, width_orig, height_orig);
+		//final_model = final_model2(rect);
+		cv::resize(final_model2, final_model, cv::Size(width_orig, height_orig), 0, 1);
 
 		//out = final_model;
 		final_model.copyTo(out);

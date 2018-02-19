@@ -455,13 +455,13 @@ void main(int argc, char** argv)
 	//
 	int width = 640;
 	int height = 480;
-	int width_tile = 128;// 128;
-	int height_tile = 128;// 128;
+	int width_tile = 64;// 128;
+	int height_tile = 64;// 128;
 	int width_mmf = 128;
 	int height_mmf = 128;
 	int handParamNum = 26;
 	int JOINT_COUNT = 19;
-	int max_generation = 100;
+	int max_generation = 30;
 	int particle_numx = 8;
 	int particle_numy = 8;
 	int particle_num = particle_numx*particle_numy;
@@ -668,9 +668,9 @@ void main(int argc, char** argv)
 
 			//pso.run(cam_color, cam_depth, com_hand,"6D"); 
 			//pso.run(cam_color, cam_depth, com_hand,"26D");
-
+			//stopWatch();
 			pso.run(cam_color, cam_depth, com_hand, "hybrid");
-
+			//stopWatch();
 			//if (cv::waitKey(1) == 'o')
 			//pso.run(cam_color, cam_depth, com_hand, "26D");		
 		}
@@ -831,14 +831,11 @@ void main(int argc, char** argv)
 		if (cameratype.compare("playcamera") == 0){
 			pso._frame = camera._frame;
 			camera._frame++;
-
-			//if (camera._frame == 200)
-			//	break;
 		}
 
 
 		//debugging with synthetic data
-		
+		/*
 		for (int j = 0; j < 26; j++)
 			printf("err[%d]=%f\n", j, pso.gbest.at<float>(0, j) - pso.truepose.at<float>(0, j));
 		printf("gbestidx:%d\n", pso.gbestIdx);
@@ -850,6 +847,8 @@ void main(int argc, char** argv)
 				exit(1);
 
 		}
+		*/
+		
 		
 		
 		

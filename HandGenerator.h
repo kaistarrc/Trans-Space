@@ -342,8 +342,8 @@ class HandGenerator{
 					classid = 0;
 			*/
 			
-			//classid = 3;
-			classid = 7;
+			classid = 3;
+			//classid = 7;
 
 
 				printf("classid:%d\n", classid);
@@ -516,7 +516,8 @@ public:
 		hand.SetJoint(jid, positions_index, fx, fy, fz);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		hand.setViewport(640, 480);
+		//hand.setViewport(640, 480);
+		hand.setViewport(hp.width_tile*hp.particle_numx, hp.height_tile*hp.particle_numy);
 		hand.Render(rx, ry, rz, false, tx, ty, tz, type);
 	}
 
@@ -527,7 +528,7 @@ public:
 		
 		//printf("tile %.2f %.2f %.2f\n", in[0], in[1], in[2]);
 		setPose(in);
-		hand.setViewport(px, py, 128, 128);
+		hand.setViewport(px, py, hp.width_tile, hp.height_tile);
 
 		hand.Render(in[3], in[4],in[5], false,in[0],in[1],in[2],vistype);
 	}
@@ -535,7 +536,8 @@ public:
 	void renderOrig(float* in,std::string vistype){
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		setPose(in);
-		hand.setViewport(640, 480);
+		//hand.setViewport(640, 480);
+		hand.setViewport(hp.width_tile*hp.particle_numx, hp.height_tile*hp.particle_numy);
 		hand.Render(in[3], in[4], in[5], false, in[0], in[1], in[2],vistype);
 	}
 

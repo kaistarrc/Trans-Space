@@ -62,16 +62,20 @@ public:
 		cudaMalloc(&oimg_cu, sizeof(float)*width_fb*height_fb);
 
 		dif_max = 40;
-		initCudaMem(width, height, particle_numx, particle_numy, 4, 4);
+		block_numx = width / 32;
+		block_numy = height / 32;
+		//initCudaMem(width, height, particle_numx, particle_numy, 4, 4);
+		initCudaMem(width, height, particle_numx, particle_numy, block_numx, block_numy);
+
 
 		//for debugging
 		debugImg = cv::Mat(height_fb, width_fb, CV_32FC1);
 		debugImg_norm = cv::Mat(height_fb, width_fb, CV_8UC1);
 		cudaMalloc(&debugImg_cu, sizeof(float)*width_fb*height_fb);
 
-		cost_dif_reduce = new float[4 * particle_numx * 4 * particle_numy];
-		cost_and_reduce = new float[4 * particle_numx * 4 * particle_numy];
-		cost_or_reduce = new float[4 * particle_numx * 4 * particle_numy];
+		cost_dif_reduce = new float[block_numx * particle_numx * block_numy * particle_numy];
+		cost_and_reduce = new float[block_numx * particle_numx * block_numy * particle_numy];
+		cost_or_reduce = new float[block_numx * particle_numx * block_numy * particle_numy];
 
 	}
 
@@ -220,6 +224,8 @@ private:
 	int particle_numx;
 	int particle_numy;
 	int particle_num;
+	int block_numx;
+	int block_numy;
 
 	//cpu data
 	cv::Mat oimg;
@@ -314,24 +320,24 @@ private:
 		//cudaMemcpy(cost_reduce, cost_reduce_cu, sizeof(float)* 4 * particle_numx * 4 * particle_numy, cudaMemcpyDeviceToHost);
 		getReduceResult(cost_dif_reduce, cost_and_reduce, cost_or_reduce);
 
-		cv::Mat cost_dif_reduce_gpu = cv::Mat(4 * particle_numy, 4 * particle_numx, CV_32FC1);
-		cv::Mat cost_and_reduce_gpu = cv::Mat(4 * particle_numy, 4 * particle_numx, CV_32FC1);
-		cv::Mat cost_or_reduce_gpu = cv::Mat(4 * particle_numy, 4 * particle_numx, CV_32FC1);
-		for (int i = 0; i < 4 * particle_numx; i++)
-		for (int j = 0; j < 4 * particle_numy; j++){
-			cost_dif_reduce_gpu.at<float>(j, i) = cost_dif_reduce[4 * particle_numx * j + i];
-			cost_and_reduce_gpu.at<float>(j, i) = cost_and_reduce[4 * particle_numx * j + i];
-			cost_or_reduce_gpu.at<float>(j, i) = cost_or_reduce[4 * particle_numx * j + i];
+		cv::Mat cost_dif_reduce_gpu = cv::Mat(block_numy * particle_numy, block_numx * particle_numx, CV_32FC1);
+		cv::Mat cost_and_reduce_gpu = cv::Mat(block_numy * particle_numy, block_numx * particle_numx, CV_32FC1);
+		cv::Mat cost_or_reduce_gpu = cv::Mat(block_numy * particle_numy, block_numx * particle_numx, CV_32FC1);
+		for (int i = 0; i < block_numx * particle_numx; i++)
+		for (int j = 0; j < block_numy * particle_numy; j++){
+			cost_dif_reduce_gpu.at<float>(j, i) = cost_dif_reduce[block_numx * particle_numx * j + i];
+			cost_and_reduce_gpu.at<float>(j, i) = cost_and_reduce[block_numx * particle_numx * j + i];
+			cost_or_reduce_gpu.at<float>(j, i) = cost_or_reduce[block_numx * particle_numx * j + i];
 		}
 
-		cv::Mat cost_dif_reduce_cpu = cv::Mat(4 * particle_numy, 4 * particle_numx, CV_32FC1);
-		cv::Mat cost_and_reduce_cpu = cv::Mat(4 * particle_numy, 4 * particle_numx, CV_32FC1);
-		cv::Mat cost_or_reduce_cpu = cv::Mat(4 * particle_numy, 4 * particle_numx, CV_32FC1);
+		cv::Mat cost_dif_reduce_cpu = cv::Mat(block_numy * particle_numy, block_numx * particle_numx, CV_32FC1);
+		cv::Mat cost_and_reduce_cpu = cv::Mat(block_numy * particle_numy, block_numx * particle_numx, CV_32FC1);
+		cv::Mat cost_or_reduce_cpu = cv::Mat(block_numy * particle_numy, block_numx * particle_numx, CV_32FC1);
 		for (int m = 0; m < particle_numy; m++)
 		for (int k = 0; k < particle_numx; k++)
 		{
-			for (int m1 = 0; m1 < 4; m1++)
-			for (int k1 = 0; k1 < 4; k1++)
+			for (int m1 = 0; m1 < block_numy; m1++)
+			for (int k1 = 0; k1 < block_numx; k1++)
 			{
 				float sumcpu = 0;
 				float andcpu = 0;
@@ -339,13 +345,13 @@ private:
 
 				for (int i = 0; i < 32; i++)
 				for (int j = 0; j < 32; j++){
-					sumcpu += img_dif.at<float>(j + 32 * m1 + 128 * m, i + 32 * k1 + 128 * k);
-					andcpu += img_and.at<float>(j + 32 * m1 + 128 * m, i + 32 * k1 + 128 * k);
-					orcpu += img_or.at<float>(j + 32 * m1 + 128 * m, i + 32 * k1 + 128 * k);
+					sumcpu += img_dif.at<float>(j + 32 * m1 + height * m, i + 32 * k1 + width * k);
+					andcpu += img_and.at<float>(j + 32 * m1 + height * m, i + 32 * k1 + width * k);
+					orcpu += img_or.at<float>(j + 32 * m1 + height * m, i + 32 * k1 + width * k);
 				}
-				cost_dif_reduce_cpu.at<float>(m1 + 4 * m, k1 + 4 * k) = sumcpu;
-				cost_and_reduce_cpu.at<float>(m1 + 4 * m, k1 + 4 * k) = andcpu;
-				cost_or_reduce_cpu.at<float>(m1 + 4 * m, k1 + 4 * k) = orcpu;
+				cost_dif_reduce_cpu.at<float>(m1 + block_numy * m, k1 + block_numx * k) = sumcpu;
+				cost_and_reduce_cpu.at<float>(m1 + block_numy * m, k1 + block_numx * k) = andcpu;
+				cost_or_reduce_cpu.at<float>(m1 + block_numy * m, k1 + block_numx * k) = orcpu;
 
 			}
 		}

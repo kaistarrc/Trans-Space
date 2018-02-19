@@ -40,10 +40,10 @@
 texture<uchar4, 2, cudaReadModeElementType> color_tex;
 texture<float4, 2, cudaReadModeElementType> extra_tex;
 
-static int width;// = 128;
-static int height;// = 128;
-static int block_numx;// = 4;
-static int block_numy;// = 4;
+static int width;// = 128; 64;
+static int height;// = 128; 64;
+static int block_numx;// = 4; 2;
+static int block_numy;// = 4; 2;
 static int particle_numx;// = 8;
 static int particle_numy;// = 4;
 
@@ -104,9 +104,9 @@ extern "C" void releaseCudaMem()
 
 extern "C" void getReduceResult(float* cost_dif_reduce, float* cost_and_reduce, float* cost_or_reduce)
 {
-	cudaMemcpy(cost_dif_reduce, cost_dif_reduce_cu, sizeof(float)* 4 * particle_numx * 4 * particle_numy, cudaMemcpyDeviceToHost);
-	cudaMemcpy(cost_and_reduce, cost_and_reduce_cu, sizeof(float)* 4 * particle_numx * 4 * particle_numy, cudaMemcpyDeviceToHost);
-	cudaMemcpy(cost_or_reduce, cost_or_reduce_cu, sizeof(float)* 4 * particle_numx * 4 * particle_numy, cudaMemcpyDeviceToHost);
+	cudaMemcpy(cost_dif_reduce, cost_dif_reduce_cu, sizeof(float)* block_numx * particle_numx * block_numy * particle_numy, cudaMemcpyDeviceToHost);
+	cudaMemcpy(cost_and_reduce, cost_and_reduce_cu, sizeof(float)* block_numx * particle_numx * block_numy * particle_numy, cudaMemcpyDeviceToHost);
+	cudaMemcpy(cost_or_reduce, cost_or_reduce_cu, sizeof(float)* block_numx * particle_numx * block_numy * particle_numy, cudaMemcpyDeviceToHost);
 
 }
 extern "C" void getCostFromGPU(cv::Mat& cost_dif, cv::Mat& cost_and, cv::Mat& cost_or)
@@ -286,7 +286,7 @@ __global__ void sum_and_reduce2(float *g_idata, float *g_odata) {
 extern "C" void calculatecost_cu(float* img_ob_cu, float dif_max)//, float* img_dif_cu)//,float* cost_cu)//,int g)
 {
 	dim3 block(width / block_numx, height / block_numy);  //=(32,32)
-	dim3 grid(block_numx, block_numy, particle_numx*particle_numy);   //=(4,4,particle_num)
+	dim3 grid(block_numx, block_numy, particle_numx*particle_numy);   //=(4,4,particle_num), =(2,2,particle_num)
 
 	// difference map	
 	differentiate << <grid, block >> > (img_ob_cu, img_dif_cu, img_and_cu, img_or_cu, width, height, particle_numx, particle_numy, dif_max);

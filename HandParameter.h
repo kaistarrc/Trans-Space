@@ -79,8 +79,8 @@ struct HandParameters
 		hp.fy =  477.9;
 		
 		hp.render_animationSpeed = 0.01f;
-		hp.width_tile = 128;// 128;
-		hp.height_tile = 128;// 128;
+		hp.width_tile = 64;// 128;
+		hp.height_tile = 64;// 128;
 		hp.width = 640;
 		hp.height = 480;
 		hp.particle_numx = 8;
