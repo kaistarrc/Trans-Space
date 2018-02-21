@@ -49,6 +49,8 @@ MMF::MMF(int w, int h){
 
 
 	//initial read
+	hEvent3 = OpenEvent(EVENT_ALL_ACCESS, 0, (LPCWSTR)"e3");
+
 	// 매핑 파일 열기
 	hMapRead = OpenFileMappingA(FILE_MAP_READ,
 		FALSE,
@@ -60,6 +62,8 @@ MMF::MMF(int w, int h){
 		0,
 		0,
 		0);
+
+	hEvent4 = OpenEvent(EVENT_ALL_ACCESS, 0, (LPCWSTR)"e4");
 
 	//??
 	getimg_bool = false;
@@ -83,14 +87,13 @@ void MMF::send2CNN(){
 
 	cvWaitKey(1); // to 1?
 
-	WaitForSingleObject(hEvent2, INFINITE);
-
+WaitForSingleObject(hEvent2, INFINITE);
 	for (int i = 0; i<width; i++)
 	for (int j = 0; j<height; j++)
 	{
 		lpMapping_send[i + j * width] = _cnnimg.at<float>(j, i);
 	}
-	SetEvent(hEvent); // 상대를 깨운다
+SetEvent(hEvent); // 상대를 깨운다
 
 	getimg_bool = false;
 	//printf("mmf.data has been sended\n");
@@ -99,27 +102,16 @@ void MMF::send2CNN(){
 
 int MMF::receiveData()
 {
-	if (lpMapping_receive == NULL)
-	{
-		// 매핑 파일 열기
-		hMapRead = OpenFileMappingA(FILE_MAP_READ,
-			FALSE,
-			"LearningResult");
 
-		// 파일에 매핑하기
-		lpMapping_receive = (float*)MapViewOfFile(hMapRead,
-			FILE_MAP_READ,
-			0,
-			0,
-			0);
-
-		return -1;
+WaitForSingleObject(hEvent3, INFINITE);//
+	//DL_result = lpMapping_receive[0];
+	for (int i = 0; i < DATA_LEN2; i++){
+		DL_result[i] = lpMapping_receive[i];
 	}
 
-
-	//DL_result = lpMapping_receive[0];
-	for (int i = 0; i < DATA_LEN2; i++)
-		DL_result[i] = lpMapping_receive[i];
+SetEvent(hEvent4);
+	
+	
 
 	return 0;
 }

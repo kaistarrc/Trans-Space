@@ -6,6 +6,9 @@
 #include "GLRenderer.h"
 #include "Hand.h"
 #include "HandGenerator.h"
+
+#include "NYUCamera.h"
+
 class Camera{
 
 public:
@@ -26,6 +29,8 @@ public:
 			realcamera = new RealSenseCVWrapper(w, h);
 		else if (camtype.compare("playcamera") == 0)
 			playcamera = new PlayCamera(w, h);
+		else if (camtype.compare("nyucamera") == 0)
+			nyucamera = new NYUCamera(w, h);
 		else{
 			handgenerator = hg;
 			glcamera = gr;
@@ -41,8 +46,8 @@ public:
 		calib_mat.at<float>(1, 0) = 0.0; calib_mat.at<float>(1, 1) = 477.9; calib_mat.at<float>(1, 2) = 240.0;
 		calib_mat.at<float>(2, 0) = 0.0; calib_mat.at<float>(2, 1) = 0.0; calib_mat.at<float>(2, 2) = 1.0;
 
-		_frame = 0;
-		//_frame = 9;
+		//_frame = 0;
+		_frame = 2;
 		
 	}
 
@@ -75,6 +80,12 @@ public:
 
 			
 		}
+		else if (_camtype == "nyucamera"){
+			if (nyucamera->queryFrames(_frame) == false)
+				return false;
+
+		}
+
 		else if (_camtype.compare("glcamera_gui") == 0){
 			handgenerator->_trackbar.run();// run_trackbar();
 
@@ -88,7 +99,8 @@ public:
 				return false;
 		}
 		else if (_camtype.compare("glcamera_sequence") == 0){
-			if (handgenerator->_posesetgenerator.run_sequence() == -1)
+			//if (handgenerator->_posesetgenerator.run_sequence() == -1)
+			if (handgenerator->_posesetgenerator.run_sequence_between() == -1)
 				return false;
 		}
 		else if (_camtype.compare("glcamera_test") == 0){
@@ -110,6 +122,10 @@ public:
 			for (int i = 0; i < width;i++)
 			for (int j = 0; j < height; j++)
 				cam_depth.at<float>(j, i) = cam_depth16.at<ushort>(j, i);
+		}
+		else if (_camtype == "nyucamera"){
+			nyucamera->getDepthBuffer(cam_depth);
+
 		}
 
 		else if (_camtype.compare("glcamera_gui") == 0){
@@ -148,6 +164,8 @@ public:
 			glFinish();
 			glcamera->getOrigImage(cam_color, "color");
 		}
+		else if (_camtype == "nyucamera")
+			nyucamera->getColorBuffer(cam_color);
 		else if (_camtype.compare("glcamera_cnn_dataset") == 0){
 			handgenerator->run_posegenerator2hand("color");
 			glFinish();
@@ -167,23 +185,24 @@ public:
 
 
 		//change color to white.
-		/*
-		for (int i = 0; i < width;i++)
-		for (int j = 0; j < height; j++)
-		{
-			unsigned char b = cam_color.at<uchar>(j, 3 * i + 0);
-			unsigned char g = cam_color.at<uchar>(j, 3 * i + 1);
-			unsigned char r = cam_color.at<uchar>(j, 3 * i + 2);
-
-			if (b>0 & g>0 & r > 0)
+		if (_camtype != "realcamera" && _camtype !="nyucamera" ){
+			for (int i = 0; i < width; i++)
+			for (int j = 0; j < height; j++)
 			{
-				
-				cam_color.at<uchar>(j, 3 * i + 0) = 255;
-				cam_color.at<uchar>(j, 3 * i + 1) = 255;
-				cam_color.at<uchar>(j, 3 * i + 2) = 255;
+				unsigned char b = cam_color.at<uchar>(j, 3 * i + 0);
+				unsigned char g = cam_color.at<uchar>(j, 3 * i + 1);
+				unsigned char r = cam_color.at<uchar>(j, 3 * i + 2);
+
+				if (b>0 || g>0 || r > 0)
+				{
+
+					cam_color.at<uchar>(j, 3 * i + 0) = 125;
+					cam_color.at<uchar>(j, 3 * i + 1) = 125;
+					cam_color.at<uchar>(j, 3 * i + 2) = 125;
+				}
 			}
 		}
-		*/
+		
 
 		cam_color.copyTo(out);
 	}
@@ -261,6 +280,7 @@ private:
 	PlayCamera* playcamera;
 	HandGenerator* handgenerator;
 	GLRenderer* glcamera;
+	NYUCamera* nyucamera;
 
 	std::string _camtype;
 

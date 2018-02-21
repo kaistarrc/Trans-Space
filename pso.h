@@ -14,14 +14,12 @@
 
 #include <random>
 
-#define DEBUGGING
+//#define DEBUGGING
 
-#define METHOD00
-//#define METHOD01
+//#define METHOD0 //fixed boundary
+//#define METHOD1 //floating boundary
+#define METHOD2 //adaptive boundary
 
-
-#define METHOD10
-//#define METHOD11
 
 #define CONSISTENT_SEED
 
@@ -165,6 +163,7 @@ public:
 #else
 
 		std::vector<float> h_26d;
+		//h_26d.push_back(-100); h_26d.push_back(-45); h_26d.push_back(700);
 		h_26d.push_back(5); h_26d.push_back(-45); h_26d.push_back(250);
 		h_26d.push_back(98); h_26d.push_back(6); h_26d.push_back(-4);
 		h_26d.push_back(-19); h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10);
@@ -198,33 +197,36 @@ public:
 
 #pragma region set pose_cnn / boundary_cnn 
 		if (type == "hybrid"){
-						
+
 			//from manual cnn
 			/*
 			for (int i = 0; i < dimension; i++)
-				pose_cnn.at<float>(0, i) = truepose.at<float>(0, i);
-			
+			pose_cnn.at<float>(0, i) = truepose.at<float>(0, i);
+
 			for (int i = 0; i < 6; i++)
-				pose_cnn.at<float>(0, i) += frand_gaussian(0, 5, -15, 15);
-				//pose_cnn.at<float>(0, i) += -15 +rand() / double(RAND_MAX) * 30;
+			pose_cnn.at<float>(0, i) += frand_gaussian(0, 5, -15, 15);
+			//pose_cnn.at<float>(0, i) += -15 +rand() / double(RAND_MAX) * 30;
 
 			for (int i = 6; i < dimension; i++){
-				pose_cnn.at<float>(0, i) += frand_gaussian(0, 20, -30, 30);
-				//pose_cnn.at<float>(0, i) += -bs + rand() / double(RAND_MAX) * 2*bs;
+			pose_cnn.at<float>(0, i) += frand_gaussian(0, 20, -30, 30);
+			//pose_cnn.at<float>(0, i) += -bs + rand() / double(RAND_MAX) * 2*bs;
 			}
 			*/
 
 			//from trained cnn.
-			
+
 			_mmf->receiveData();
 			_mmf->getLabel(&pose_cnn.at<float>(0, 0));
+
+
 			pose_cnn.at<float>(0, 0) += com_hand[0];
 			pose_cnn.at<float>(0, 1) -= com_hand[1];
 			pose_cnn.at<float>(0, 2) += com_hand[2];
-			
 
 			//limit position
 			limitPosition(pose_cnn, boundary_const);
+			//for (int j = 0; j < dimension;j++)
+			//	printf("[%d]=%.2f\n", j, pose_cnn.at<float>(0,j));
 
 			//show model
 			showObModel("cnn",cam_color,cam_depth, &pose_cnn.at<float>(0, 0),"nosave");
@@ -237,10 +239,8 @@ public:
 #pragma region initialize 
 		initializeVelocity();
 		initializePcost(0,particle_num);
-
 		setBoundary_track(); //check (around gbest_param_pre)
 		
-
 		if (type == "6D"){
 			initializePalm(0, particle_num, gbest_pre, boundary_track);
 		}
@@ -249,48 +249,46 @@ public:
 			//initializePalm(20, 26, gbest_pre, boundary);
 			//initializeAll(26, particle_num, gbest_pre, boundary);
 			initializeAll(0, particle_num, gbest_pre, boundary_track);
+			calculateCost(0);
+			calculatePbest();
+			calculateGbest(0, particle_num, gbest);
 		}
 		else if (type=="hybrid"){
 			initializeAll(0, particle_num / 2, gbest_pre, boundary_track);
 			initializeAll(particle_num/2, particle_num, pose_cnn, boundary_cnn);
+			calculateCost(0);
+			calculatePbest();
+			calculateGbest(0, particle_num / 2, gbest_track);
+			calculateGbest(particle_num / 2, particle_num, gbest_cnn);
+			calculateGbest(0, particle_num, gbest);
 		}
 
 		
-		calculateCost(0);
-		calculatePbest(); 
-		calculateGbest(0, particle_num / 2, gbest_track);
-		calculateGbest(particle_num/2, particle_num, gbest_cnn);
-		calculateGbest(0, particle_num, gbest);
 		//showObModelParticles("initial");
 #pragma endregion
-
-		
 
 		for (int g = 0; g < max_generation; g++){
 			
 #pragma region calculate velocity and update particles.
-			//showObModelParticles("during","save",g);
+
 			if (type=="6D"){
 				calculateVelocity(0, particle_num, gbest, boundary_track);
 				updatePalm(0, particle_num, gbest, boundary_track);
 			}
 			else if (type=="26D"){
-				
 				calculateVelocity(0, particle_num, gbest, boundary_track);
 				updateAll(0, particle_num, boundary_track,collisionNumber_track,"damping");
-			
 			}
 			else if (type=="hybrid"){
 				
-#ifdef METHOD01
+#ifdef METHOD0
 				calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
-				updateAll(0, particle_num / 2, boundary_track, collisionNumber_track);
+				updateAll(0, particle_num / 2, boundary_track, collisionNumber_track, "damping");
 
 				calculateVelocity(particle_num / 2, particle_num, gbest_cnn, boundary_cnn);
-				updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn);
-#endif
-
-#ifdef METHOD00
+				updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn, "damping");
+#else
+				
 				if (g < 5){
 					calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
 					updateAll(0, particle_num / 2, boundary_track, collisionNumber_track,"damping");
@@ -307,157 +305,125 @@ public:
 					updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn,"damping");
 				}	
 #endif
+			}
+#pragma endregion
+			
 				
-					
-			}
-#pragma endregion
-			//after initial search during 10 generations.
-			
-			
-#pragma region reinitialize when velocity is about zero.
-			/*
-			{
-				float deadrange[26] = { 2, 2, 2, 2, 2, 2,
-					2, 1, 2, 2,
-					2, 1, 2, 2,
-					2, 1, 2, 2,
-					2, 1, 2, 2,
-					2, 1, 2, 2 };
-
-				for (int j = 6; j < dimension; j++)
-				{
-					int velnum[2] = { 0 };
-					for (int i = 0; i < particle_num / 2; i++){
-						if (abs(pvel.at<float>(i, j)) < deadrange[j])
-							velnum[0] += 1;
-					}
-					for (int i = particle_num / 2; i < particle_num; i++){
-						if (abs(pvel.at<float>(i, j)) < deadrange[j])
-							velnum[1] += 1;
-					}
-
-					if (velnum[0] > 0.5*particle_num / 2){
-						updateBoundary2(j, collisionNumber_track, boundary_track,bound_alpha0);
-
-						for (int i = 0; i < particle_num / 2; i++){
-							float b0 = boundary_track.at<float>(0, j);
-							float b1 = boundary_track.at<float>(1, j);
-							//position.at<float>(i, j) = frand_gaussian((b0 + b1) / 2, (b1 - b0)*0.3, b0, b1);
-							//position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
-							position.at<float>(i, j) = frand_uniform(b0, b1);
-							pvel.at<float>(i, j) = 0;
-						}
-
-					}
-					if (velnum[1] > 0.5*particle_num / 2){
-						updateBoundary2(j, collisionNumber_cnn, boundary_cnn,bound_alpha1);
-
-						for (int i = particle_num / 2; i < particle_num; i++){
-							float b0 = boundary_cnn.at<float>(0, j);
-							float b1 = boundary_cnn.at<float>(1, j);
-							//position.at<float>(i, j) = frand_gaussian((b0 + b1) / 2, (b1 - b0)*0.3, b0, b1);
-							//position.at<float>(i, j) = (b1 - b0)*(rand() / double(RAND_MAX)) + b0;
-							position.at<float>(i, j) = frand_uniform(b0, b1);
-							pvel.at<float>(i, j) = 0;
-						}
-					}
-				}
-			}
-			*/
-#pragma endregion
-			
-
 #pragma region calculate cost / pbest / gbest	
 			
-			//cost difference
-			if (g > 0)
-				cost.copyTo(cost_pre);
-			
 			calculateCost(g);
-			
-			if (g > 0)
-				cost_dif = cost - cost_pre;
-			
-			//
 			calculatePbest();
-			calculateGbest(0, particle_num / 2, gbest_track);
-			calculateGbest(particle_num / 2, particle_num, gbest_cnn);
-			calculateGbest(0, particle_num, gbest);
+
+			if (type == "hybrid"){
+				calculateGbest(0, particle_num / 2, gbest_track);
+				calculateGbest(particle_num / 2, particle_num, gbest_cnn);
+				calculateGbest(0, particle_num, gbest);
+			}
+			else{
+				calculateGbest(0, particle_num, gbest);
+			}
 			
 #pragma endregion
 			
 #pragma region change boundary
-			
-			float b_alpha0 = bound_alpha0;
-			float b_alpha1 = bound_alpha1;
-			if (g>=5 && g%5==0)
+	
+#ifdef METHOD1
+			float b_alpha0 = 0.5;
+			float b_alpha1 = 0.5;
+
+			if (g >= 5 && g % 5 == 0)
 			{
-				//for (int j = 0; j < 6; j++){
-				for (int j = 0; j < dimension; j++){
-					
-					//0~particle_num/2.
-					{
-						float avg = calculateAverage(position, j, 0, particle_num / 2);
-						float stdev = calculateSTDEV(position, g, j, avg, 0, particle_num / 2);
-						//printf("old stdev:%f\n", stdev);
+				for(int j=0;j<dimension;j++){
 
-						//printf("dimension:%d\n", j);
-						//if (checkUpperBoundary(j, g, avg, stdev) == 1)
-							updateUpperBoundary(j, g, avg, stdev, boundary_track);
-						
-						//if (checkLowerBoundary(j, g, avg, stdev) == 1)
-							updateLowerBoundary(j, g, avg, stdev, boundary_track);
+					updateBoundary2(j, collisionNumber_track, boundary_track, b_alpha0);
+					updateBoundary2(j, collisionNumber_cnn, boundary_cnn, b_alpha1);
+
+					limitBoundary(boundary_track);
+					limitBoundary(boundary_cnn);
+				}
+
+			}
+#endif
+
+#ifdef METHOD2
 			
-						limitBoundary(boundary_track);
-					}
+			if (type == "hybrid"){
+				if (g >= 5 && g % 5 == 0)
+				{
+					for (int j = 0; j < dimension; j++){
+						//0~particle_num/2.
+						{
+							float avg = calculateAverage(position, j, 0, particle_num / 2);
+							float stdev = calculateSTDEV(position, g, j, avg, 0, particle_num / 2);
 
-					//0~particle_num/2.
-					{
-						float avg = calculateAverage(position, j, particle_num/2, particle_num);
-						float stdev = calculateSTDEV(position, g, j, avg, particle_num/2, particle_num);
+							//if (checkUpperBoundary(j, g, avg, stdev) == 1)
+							updateUpperBoundary(j, g, avg, stdev, boundary_track);
+
+							//if (checkLowerBoundary(j, g, avg, stdev) == 1)
+							updateLowerBoundary(j, g, avg, stdev, boundary_track);
+
+							limitBoundary(boundary_track);
+						}
+						//0~particle_num/2.
+						{
+						float avg = calculateAverage(position, j, particle_num / 2, particle_num);
+						float stdev = calculateSTDEV(position, g, j, avg, particle_num / 2, particle_num);
 
 						updateUpperBoundary(j, g, avg, stdev, boundary_cnn);
 						updateLowerBoundary(j, g, avg, stdev, boundary_cnn);
 
 						limitBoundary(boundary_cnn);
 					}
-				
-					printf("\n");
+					}
 				}
-				//cv::waitKey(1);
 			}
+			else{
+				if (g >= 5 && g % 5 == 0)
+				{
+					for (int j = 0; j < dimension; j++){
+						//0~particle_num/2.
+						{
+							float avg = calculateAverage(position, j, 0, particle_num );
+							float stdev = calculateSTDEV(position, g, j, avg, 0, particle_num);
 
-		
-			
-			
-#ifdef METHOD10
+							//if (checkUpperBoundary(j, g, avg, stdev) == 1)
+							updateUpperBoundary(j, g, avg, stdev, boundary_track);
+
+							//if (checkLowerBoundary(j, g, avg, stdev) == 1)
+							updateLowerBoundary(j, g, avg, stdev, boundary_track);
+
+							limitBoundary(boundary_track);
+						}
+					}
+				}
+
+			}
+#endif
+
+
+
+#pragma endregion
+
+#pragma region reinitialize finger
 			
 			if(g % 3 == 0){
 
-				//reinitializeFingers(particle_num / 2, particle_num, 10, gbest_cnn, boundary_cnn);
-
-				//int r = frand_uniform(0, 5);
-				//int dr = 6+4*r;
-
-				//int r = frand_uniform(0, 20);
-				//int dr = 6 + r;
-				//printf("dr:%d\n", dr);
-				reinitializeFingers(0, particle_num/4,boundary_track);
-				reinitializeFingers(3*particle_num/4, particle_num,boundary_cnn);
-				
-				//reinitializeFingers(0, particle_num/4, dr,gbest, boundary_track);
-				//reinitializeFingers(particle_num/2,4*particle_num/3, dr, gbest, boundary_cnn);
+				if (type == "hybrid"){
+					reinitializeFingers(0, particle_num / 4, boundary_track);
+					reinitializeFingers(3 * particle_num / 4, particle_num, boundary_cnn);
+				}
+				else{
+					reinitializeFingers(0, particle_num / 2, boundary_track);
+				}
 			}
 			
-
-#endif
-
 			
 			
 
 #pragma endregion
 
-#pragma region debug particles
+			//if (g==max_generation-1)
+			//showObModelParticles("during", "nosave", g);
 #ifdef DEBUGGING
 			debugParticles(g);
 
@@ -491,8 +457,6 @@ public:
 			
 
 #endif
-#pragma endregion
-
 		}
 //generation finish.
 	
@@ -503,8 +467,10 @@ public:
 			gbest_pre.at<float>(0, j) = gbest.at<float>(0, j);
 		}
 		
-		//for (int i = 0; i < 5; i++)
-		//	printf("F[%d] %.2f %.2f %.2f %.2f\n", i, gbest.at<float>(0, 6 + 4 * i + 0), gbest.at<float>(0, 6 + 4 * i + 1), gbest.at<float>(0, 6 + 4 * i + 2), gbest.at<float>(0, 6 + 4 * i + 3));
+		printf("wt: %.2f %.2f %.2f\n", gbest.at<float>(0, 0), gbest.at<float>(0, 1), gbest.at<float>(0, 2));
+		printf("wr: %.2f %.2f %.2f\n", gbest.at<float>(0, 3), gbest.at<float>(0, 4), gbest.at<float>(0, 5));
+		for (int i = 0; i < 5; i++)
+			printf("F[%d] %.2f %.2f %.2f %.2f\n", i, gbest.at<float>(0, 6 + 4 * i + 0), gbest.at<float>(0, 6 + 4 * i + 1), gbest.at<float>(0, 6 + 4 * i + 2), gbest.at<float>(0, 6 + 4 * i + 3));
 		
 		//visualize final solution
 		//showDemo(cam_color,cam_depth);
@@ -512,22 +478,15 @@ public:
 		
 		
 		
+
 		//line up
 		//cv::moveWindow("cnn", 0, 0);
 		//cv::moveWindow("cnn_dif", 640, 0);
 		//cv::moveWindow("final", 0, 480);
 		//cv::moveWindow("final_dif", 640, 480);
 		//cv::moveWindow("initial", 640 * 3, 0);
-		
-
-		
-
-		
 
 	}
-
-
-
 
 	void setBoundary_track(){
 
@@ -957,6 +916,7 @@ public:
 			cost.at<float>(0, i) += cost_pose;
 		}
 		
+		
 	}
 
 	
@@ -981,13 +941,10 @@ public:
 
 	void showObModel(std::string wname,cv::Mat cam_color,cv::Mat cam_depth,float* solp,std::string opt)
 	{
-		cv::Mat cam_depth_debug;
-		cam_depth.copyTo(cam_depth_debug);
 
 		//--color
 		//float* solp = &position.at<float>(0, 0);
 		_renderer->renderOrig(solp, "color");
-
 
 		cv::Mat model_color;
 		_glrenderer.getOrigImage(model_color, "color");
@@ -995,13 +952,9 @@ public:
 		cv::Mat fimg;
 		cv::addWeighted(cam_color, 0.5, model_color, 1.0, 0, fimg);
 		cv::imshow(wname, fimg);
-		//cv::imshow("model", model_color);
-		//cv::imshow("final", cam_img);
-		cv::waitKey(1);
 
 		//-- depth
 		_renderer->renderOrig(solp, "depth");
-
 		cv::Mat model_depth;
 		_glrenderer.getOrigImage(model_depth, "depth");
 
@@ -1020,20 +973,41 @@ public:
 		if (opt.compare("save") == 0)
 		{
 			//result image
+			
 			char filename[200];
 			sprintf(filename, "experiment/%d/result-%07u.png", experimentID,_frame);
 			cv::imwrite(filename, fimg);
+			
 
 			//result cost
+			/*
 			FILE* fp;
 			char filename1[200];
-			sprintf(filename, "experiment/method%d.csv", experimentID);
+			sprintf(filename, "experiment/method0_difError%d.csv", experimentID);
 			fp = fopen(filename, "a");
 			
 			char str[100];
-			sprintf(str, "%.2f\n", cost_gbest);
+
+			float c_dif = 0;
+			int count = 0;
+			for (int i = 0; i < 640;i++)
+			for (int j = 0; j < 480; j++){
+				float o = cam_depth.at<float>(j, i);
+				
+				if (o == 0)
+					continue;
+
+				float m = model_depth.at<float>(j, i);
+				c_dif += abs(m - o);
+				count++;
+			}
+		
+			c_dif /= count;
+
+			sprintf(str, "%.2f\n", c_dif);
 			fputs(str, fp);
 			fclose(fp);
+			*/
 		}
 
 	}
@@ -1132,15 +1106,20 @@ public:
 		}
 		cv::addWeighted(o_3c, 0.5, m_3c, 0.5, 0, om_3c);
 
+		cv::resize(om_3c, om_3c,cv::Size(1024, 1024), 0, 0,1);
+
 		//write the likelihood as text
-		int w_one = w / particle_numx;
-		int h_one = h / particle_numy;
+		int w_one = om_3c.size().width / particle_numx;
+		int h_one = om_3c.size().height / particle_numy;
+		//int w_one = w / particle_numx;
+		//int h_one = h / particle_numy;
 		CvFont font;
 		cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX | CV_FONT_ITALIC, 0.4, 0.4, 0, 1);
 		char text_c[100];
 		for (int i = 0; i < particle_numx; i++)
 		for (int j = 0; j < particle_numy; j++){
 
+	
 			sprintf(text_c, "%.3f", cost.at<float>(0, i + particle_numx*j));
 			cv::putText(om_3c, text_c, cvPoint(w_one*i + 20, h_one*j + 30), 1, 2, cv::Scalar(255, 255, 0));
 
@@ -1148,10 +1127,15 @@ public:
 			//cv::putText(om_3c, text_c, cvPoint(w_one*i + 20, h_one*j + 30), 1, 1, cv::Scalar(255, 255, 0));
 		}
 
+		//cv::Mat hoho = om_3c;
+		//cv::waitKey(1);
+
 		cv::imshow(wname, om_3c);
 		//cv::Mat om_3c_resized;
 		//cv::resize(om_3c, om_3c_resized, cv::Size(896, 896), 0, 0, 1);
 		//cv::imshow(wname, om_3c_resized);
+
+
 
 
 		//save//
@@ -1163,7 +1147,7 @@ public:
 		}
 		
 
-
+		
 
 		return om_3c;
 	}
@@ -1295,8 +1279,6 @@ public:
 
 			if (b.at<float>(1, j) > boundary_max[1][j])
 				b.at<float>(1, j) = boundary_max[1][j];
-
-
 		}
 	}
 

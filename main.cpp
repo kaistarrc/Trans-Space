@@ -446,8 +446,11 @@ void main(int argc, char** argv)
 	//std::string cameratype = "playcamera";
 	//std::string cameratype = "realcamera";
 	//std::string cameratype = "glcamera_gui"; 
-	//std::string cameratype = "glcamera_sequence";
-	std::string cameratype = "glcamera_test";
+	std::string cameratype = "glcamera_sequence";
+	//std::string cameratype = "glcamera_test";
+	//std::string cameratype = "nyucamera";
+
+	std::string trackingtype = "hybrid";
 
 	//model fitting
 	bool runPSO_enable = true;
@@ -467,6 +470,19 @@ void main(int argc, char** argv)
 	int particle_num = particle_numx*particle_numy;
 	int width_fb = width_tile * particle_numx;
 	int height_fb = height_tile * particle_numy;
+
+	float fx, fy, cx, cy;
+	float sx, sy, sz;
+	if (cameratype == "nyucamera"){
+		fx = 588;	fy = 587;
+		cx = 320;	cy = 240;
+		sx = 15; sy = 25; sz = 13;
+	}
+	else{
+		fx = 477.9; fy = 477.9;
+		cx = 320.0; cy = 240.0;
+		sx = 12; sy = 11; sz = 13;
+	}
 	
 
 	//option
@@ -474,13 +490,12 @@ void main(int argc, char** argv)
 	bool segmenthand_enable = true;  
 
 	//transfer mmf image
-	bool sendcamimg_enable = true; //true;//send
 	bool sendresultimg_enable = false;//send
 	
 	//save
-	bool saveimage_enable = false;// true;                   //jj
+	bool saveimage_enable = false;// true;                 
 	bool savegroundtruth_enable = false;//save
-	bool savepsoresult_enable = false;                      //jj
+	bool savepsoresult_enable = false;                    
 	bool saveexperiment_enable = false;
 
 	//show
@@ -498,6 +513,9 @@ void main(int argc, char** argv)
 	hp.width_tile = width_tile; hp.height_tile = height_tile;
 	hp.particle_numx = particle_numx; hp.particle_numy = particle_numy;
 	hp.handParamNum = handParamNum;
+	hp.sx = sx; hp.sy = sy; hp.sz = sz;
+	hp.changeCameraProperty(fx, fy, cx, cy);
+	
 
 	GLRenderer glrenderer(width, height, width_tile, height_tile, width_fb, height_fb);
 	HandGenerator handgenerator(hp);
@@ -547,7 +565,7 @@ void main(int argc, char** argv)
 #pragma endregion
 
 #pragma region make cnn image & transfer it to CNN.
-		if (sendcamimg_enable == true){
+		if (trackingtype=="hybrid"){
 			cv::Mat depth_cnn;
 			preproc.makeCnnImage(cam_depth);
 			preproc.getCnnImage(depth_cnn);
@@ -561,8 +579,9 @@ void main(int argc, char** argv)
 				depth_cnn.copyTo(mmf._cnnimg);
 				//mmf._cnnimg = cam_colordepth;
 
-				state = pthread_create(&thread_id, NULL, sendImage_learning, NULL);
-				pthread_detach(thread_id);
+				//state = pthread_create(&thread_id, NULL, sendImage_learning, NULL);
+				//pthread_detach(thread_id);
+				mmf.send2CNN();
 			}
 		}
 #pragma endregion
@@ -650,7 +669,7 @@ void main(int argc, char** argv)
 #pragma region model fitting
 		if (runPSO_enable == true){
 
-			if (cameratype.compare("glcamera_test") == 0)
+			if (cameratype=="glcamera_sequence" || cameratype=="glcamera_test")
 			{
 				float jpos[26];
 				handgenerator.getHandPose(jpos);
@@ -661,18 +680,12 @@ void main(int argc, char** argv)
 			//pso.bound_alpha0 =  std::atof(argv[1]);  //0.5 or 0.3
 			//pso.bound_alpha1 = std::atof(argv[2]); //0.5
 			//pso.experimentID = std::atoi(argv[3]);
+			//pso.experimentID = std::atoi(argv[1]);
 
-			pso.bound_alpha0 = 0.5;
-			pso.bound_alpha1 = 0.1;
-			pso.experimentID = 0;//
+			pso.experimentID = 2;
 
-			//pso.run(cam_color, cam_depth, com_hand,"6D"); 
-			//pso.run(cam_color, cam_depth, com_hand,"26D");
-			//stopWatch();
-			pso.run(cam_color, cam_depth, com_hand, "hybrid");
-			//stopWatch();
-			//if (cv::waitKey(1) == 'o')
-			//pso.run(cam_color, cam_depth, com_hand, "26D");		
+			pso.run(cam_color, cam_depth, com_hand, trackingtype);
+			
 		}
 #pragma endregion
 
@@ -705,8 +718,8 @@ void main(int argc, char** argv)
 			FILE* fp;
 			char filename[200];
 			//sprintf(filename, "experiment/method%d.csv",std::atoi(argv[4]));
-			sprintf(filename, "experiment/method%d.csv", std::atoi(argv[3]));
-			fp = fopen(filename, "w");
+			sprintf(filename, "experiment/method0_poseError%d.csv", pso.experimentID);
+			fp = fopen(filename, "a");
 
 			char str[100];
 			for (int i = 0; i < 26; i++){
@@ -828,17 +841,27 @@ void main(int argc, char** argv)
 		if (cv::waitKey(1) == 'q')
 			break;
 
-		if (cameratype.compare("playcamera") == 0){
+		if (cameratype=="playcamera"){
 			pso._frame = camera._frame;
 			camera._frame++;
 		}
 
+		if (cameratype == "glcamera_sequence")
+		{
+			pso._frame = camera._frame;
+			camera._frame++;
+		}
+		else if(cameratype == "nyucamera")
+			camera._frame++;
+
 
 		//debugging with synthetic data
-		/*
-		for (int j = 0; j < 26; j++)
-			printf("err[%d]=%f\n", j, pso.gbest.at<float>(0, j) - pso.truepose.at<float>(0, j));
-		printf("gbestidx:%d\n", pso.gbestIdx);
+		
+		//for (int j = 0; j < 26; j++)
+		//	printf("err[%d]=%f\n", j, pso.gbest.at<float>(0, j) - pso.truepose.at<float>(0, j));
+		//printf("gbestidx:%d\n", pso.gbestIdx);
+
+		
 		while (1){
 			if (cv::waitKey(100) == '0')
 				break;
@@ -847,7 +870,9 @@ void main(int argc, char** argv)
 				exit(1);
 
 		}
-		*/
+		
+		
+		
 		
 		
 		

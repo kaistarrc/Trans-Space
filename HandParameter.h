@@ -1,6 +1,8 @@
 #ifndef __HANDPARAMETER_H__
 #define __HANDPARAMETER_H__
 
+
+
 const float boundary_max[2][26] = {
 	{ -100, -100, 0,
 	-180, -180, -180,
@@ -11,7 +13,7 @@ const float boundary_max[2][26] = {
 	-90, -10, -90, -90,
 	-90, -20, -90, -90 },
 
-	{ 100, 100, 300,
+	{ 100, 100, 300,  
 	180, 180, 180,
 
 	50, 20, 0, 0,
@@ -20,6 +22,8 @@ const float boundary_max[2][26] = {
 	0, 10, 0, 0,
 	0, 20, 0, 0 }
 };
+
+
 
 struct HandParameters
 {
@@ -36,6 +40,9 @@ struct HandParameters
 	float cy;
 	float fx;
 	float fy;
+	float sx;
+	float sy;
+	float sz;
 	float render_animationSpeed;
 	int width_tile;
 	int height_tile;
@@ -92,42 +99,6 @@ struct HandParameters
 		//hp.render_FOVx = 2 * atan(hp.width / (2 * hp.fx))*180.0 / 3.14;
 		//hp.render_FOVy = 2 * atan(hp.height / (2 * hp.fy))*180.0 / 3.14;
 
-		/*
-		hp.boundary_max[0][0] = -100;	hp.boundary_max[1][0] = 100;
-		hp.boundary_max[0][1] = -100;	hp.boundary_max[1][1] = 100;
-		hp.boundary_max[0][2] = -100;	hp.boundary_max[1][2] = 400;
-		hp.boundary_max[0][3] = -180;	hp.boundary_max[1][3] = 180;
-		hp.boundary_max[0][4] = -180;	hp.boundary_max[1][4] = 180;
-		hp.boundary_max[0][5] = -180;	hp.boundary_max[1][5] = 180;
-
-		hp.boundary_max[0][6] = -90;	hp.boundary_max[1][6] = 90;
-		hp.boundary_max[0][7] = -90;	hp.boundary_max[1][7] = 90;
-		hp.boundary_max[0][8] = -90;	hp.boundary_max[1][8] = 90;
-		hp.boundary_max[0][9] = -90;	hp.boundary_max[1][9] = 90;
-
-		hp.boundary_max[0][10] = -90;	hp.boundary_max[1][10] = 90;
-		hp.boundary_max[0][11] = -90;	hp.boundary_max[1][11] = 90;
-		hp.boundary_max[0][12] = -90;	hp.boundary_max[1][12] = 90;
-		hp.boundary_max[0][13] = -90;	hp.boundary_max[1][13] = 90;
-
-		hp.boundary_max[0][14] = -90;	hp.boundary_max[1][14] = 90;
-		hp.boundary_max[0][15] = -90;	hp.boundary_max[1][15] = 90;
-		hp.boundary_max[0][16] = -90;	hp.boundary_max[1][16] = 90;
-		hp.boundary_max[0][17] = -90;	hp.boundary_max[1][17] = 90;
-
-		hp.boundary_max[0][18] = -90;	hp.boundary_max[1][18] = 90;
-		hp.boundary_max[0][19] = -90;	hp.boundary_max[1][19] = 90;
-		hp.boundary_max[0][20] = -90;	hp.boundary_max[1][20] = 90;
-		hp.boundary_max[0][21] = -90;	hp.boundary_max[1][21] = 90;
-
-		hp.boundary_max[0][22] = -90;	hp.boundary_max[1][22] = 90;
-		hp.boundary_max[0][23] = -90;	hp.boundary_max[1][23] = 90;
-		hp.boundary_max[0][24] = -90;	hp.boundary_max[1][24] = 90;
-		hp.boundary_max[0][25] = -90;	hp.boundary_max[1][25] = 90;
-		*/
-
-
-
 		
 		hp.setup_vertexShaderPath = "data/shader.vert";
 		hp.setup_fragmentShaderPath = "data/shader.frag";
@@ -141,18 +112,12 @@ struct HandParameters
 		hp.setup_model_path_full = "data/hand_model_full.dae";
 
 		
-		//hp.setup_model_path_low = "data/wristHand_20180210.dae"; //wrist is changed to bigger one.
-		//hp.setup_model_path_low = "data/wristHand_20180208_2.dae"; //wrist is too small
-		//hp.setup_modelTexture_path = "data/wristHand_20180208_1.bmp";
-		//hp.setup_modelTexture_path = "data/test_color.bmp";
+		//hp.setup_model_path_low = "data/wristHand_2.dae"; //wrist is changed to bigger one.
+		//hp.setup_modelTexture_path = "data/wristHand_2.bmp";
+	
+		hp.setup_model_path_low = "data/hand_2.dae";
+		hp.setup_modelTexture_path = "data/hand_1.bmp";
 
-
-		hp.setup_model_path_low = "data/hand20180203_1.dae";
-		
-		hp.setup_modelTexture_path = "data/hand20180203_1.bmp";
-		//hp.setup_modelTexture_path = "data/hand20180214_2.bmp";
-		//hp.setup_modelTexture_path = "data/hand_texture_image_colored convert01.bmp";
-		//hp.setup_modelTexture_path = "data/hand_texture_image_colored white.bmp";
 
 		hp.setup_model_property_path = "data/hand.property";
 		hp.setup_model_rules_path = "data/hand.property.rules";
@@ -176,6 +141,9 @@ struct HandParameters
 		dst->cy = cy;
 		dst->fx = fx;
 		dst->fy = fy;
+		dst->sx = sx;
+		dst->sy = sy;
+		dst->sz = sz;
 		dst->render_animationSpeed = render_animationSpeed;
 
 		dst->width_tile = width_tile;
@@ -207,6 +175,15 @@ struct HandParameters
 		dst->setup_modelTexture_path = setup_modelTexture_path;
 
 		dst->setup_output_folder_path = setup_output_folder_path;
+	}
+
+	void changeCameraProperty(float fx0,float fy0,float cx0,float cy0){
+		cx = cx0;
+		cy = cy0;
+		fx = fx0;
+		fy = fy0;
+		render_FOV = 2 * atan(width / (2 * fx))*180.0 / 3.14;
+
 	}
 };
 

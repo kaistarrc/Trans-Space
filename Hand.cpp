@@ -765,7 +765,8 @@ bool Hand::Init(HandParameters parameters)
 	//std::cout << "Hand::Init1" << std::endl;
 
 	// Reading input parameters
-	param = parameters;
+	//param = parameters;
+	parameters.CopyTo(&param);
 
 	//projection matrix
 	Matrix4f::PersProjInfo persProjInfo;
@@ -952,8 +953,9 @@ void Hand::Render(float r_x, float r_y, float r_z, bool cont_rot, float wx, floa
 
 
 
-	
-	matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(12, 11, 13);//(13,13,13)
+	//matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(15, 15, 13);
+	//matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(12, 11, 13);//(13,13,13)
+	matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(param.sx, param.sy, param.sz);
 	matrix_translation = Matrix4f::MakeTranslationMatrix(wx, wy,wz);
 	matrix_modelViewProj = matrix_projection * matrix_translation * matrix_model;
 	matrix_modelView = matrix_translation*matrix_model;

@@ -266,29 +266,27 @@ class HandGenerator{
 			
 			for (int j = 0; j < 6; j++)
 				_trackbar.wval[j] = wval_a[j] - 10 + 20 * rand() / double(RAND_MAX);
-
 			
 			for (int i = 0; i < 15; i++)
 			for (int j = 0; j < 3; j++)
 				_trackbar.fval[i][j] = fval_a[i][j];
 			
 
-			//
 			poseidx++;
-			
-
-			if (poseidx == 10){
+			//if (poseidx == 10){
+			if (poseidx == 1){
 				poseidx = 0;
 				classid += 1;
 			}
 			if (classid == 25)
 				return -1;
+		
 
 			return 0;
 		}
 
 		//sequence between pose(a) and pose(b)
-		int run_sequence_backup(){
+		int run_sequence_between(){
 
 			//pose(a)
 			if (poseidx == 0){

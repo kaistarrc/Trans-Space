@@ -30,6 +30,7 @@ protected:
 	float* lpMapping_send;
 	HANDLE hMapWrite;
 	HANDLE hEvent, hEvent2;
+	HANDLE hEvent3, hEvent4;
 
 	int width, height;
 
