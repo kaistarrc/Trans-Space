@@ -17,9 +17,14 @@
 using namespace std;
 //#define DEBUGGING
 
+//orig: 다 지우기.
+//fixed:  METHOD0,  METHOD3
+//adaptive:  METHOD2,  METHOD3
+
 //#define METHOD0 //fixed boundary
 #define METHOD2 //adaptive boundary
-//#define METHOD3 //cnn term in cost function
+
+#define METHOD3 //cnn term in cost function
 
 
 //#define METHOD1 //floating boundary (skip)
@@ -975,6 +980,7 @@ public:
 
 		//--color
 		//float* solp = &position.at<float>(0, 0);
+		/*
 		_renderer->renderOrig(solp, "color");
 
 		cv::Mat model_color;
@@ -983,13 +989,33 @@ public:
 		cv::Mat fimg;
 		cv::addWeighted(cam_color, 0.5, model_color, 1.0, 0, fimg);
 		cv::imshow(wname, fimg);
+		*/
 
 		//-- depth
 		_renderer->renderOrig(solp, "depth");
 		cv::Mat model_depth;
 		_glrenderer.getOrigImage(model_depth, "depth");
 
+		//color code visualization
+		cv::Mat mask = model_depth >0;
+		double min;
+		double max;
+		cv::minMaxIdx(model_depth, &min, &max, NULL, NULL, mask);
+
+		cv::Mat adjMap;
+		model_depth.convertTo(adjMap, CV_8UC1, 255 / (max - min), -min);
+
+		cv::Mat falseColorsMap;
+		applyColorMap(adjMap, falseColorsMap, 2);
+		cv::imshow("result", falseColorsMap);
+
+		cv::Mat fimg;
+		cv::addWeighted(cam_color, 0.5, falseColorsMap, 1.0, 0, fimg);
+		cv::imshow(wname, fimg);
+
+
 		//hard coding for debugging.
+		/*
 		cv::Mat difdepth = model_depth - cam_depth;
 		cv::Mat difdepth8u = cv::Mat(480, 640, CV_8UC3);
 		difdepth8u.setTo(0);
@@ -1000,15 +1026,16 @@ public:
 		cv::normalize(difdepth, difdepth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
 		cv::imshow(wname+"_dif", difdepth8u);
 		cv::waitKey(1);
+		*/
 
 		if (opt.compare("save") == 0)
 		{
 			//result image
-			
+			/*
 			char filename[200];
 			sprintf(filename, "experiment/%d/result-%07u.png", experimentID,_frame);
 			cv::imwrite(filename, fimg);
-			
+			*/
 
 			//result cost
 			/*
@@ -1653,6 +1680,34 @@ public:
 
 	}
 
+	void saveImage(cv::Mat cam_color, int frame){
+
+		float* solp = &position.at<float>(0, 0);
+
+		//-- depth
+		_renderer->renderOrig(solp, "depth");
+		cv::Mat model_depth;
+		_glrenderer.getOrigImage(model_depth, "depth");
+
+		//color code visualization
+		cv::Mat mask = model_depth >0;
+		double min;
+		double max;
+		cv::minMaxIdx(model_depth, &min, &max, NULL, NULL, mask);
+
+		cv::Mat adjMap;
+		model_depth.convertTo(adjMap, CV_8UC1, 255 / (max - min), -min);
+
+		cv::Mat falseColorsMap;
+		applyColorMap(adjMap, falseColorsMap, 2);
+		
+		cv::Mat fimg;
+		cv::addWeighted(cam_color, 0.5, falseColorsMap, 1.0, 0, fimg);
+		
+		char filename[200];
+		sprintf(filename, "save/sequence/uvrResult/result-%07u.png", frame);
+		cv::imwrite(filename, fimg);
+	}
 	void saveJoints(cv::Mat cam_color,int  frame){
 
 		//label (26D pose)
@@ -1679,7 +1734,7 @@ public:
 		}
 		*/
 
-		//fingertip (3*5D)
+		//fingertip (3*5 D)
 		{
 			
 			//get all joints
@@ -1690,7 +1745,7 @@ public:
 			std::vector<int> jidx;
 			jidx.push_back(4); jidx.push_back(9); jidx.push_back(14); jidx.push_back(19); jidx.push_back(24);//
 
-			string fname = "save/sequence/predictedUVR.csv";
+			string fname = "save/sequence/uvr.csv";
 			static ofstream file1(fname);
 
 			//save joints	

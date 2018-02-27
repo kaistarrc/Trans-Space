@@ -7,7 +7,7 @@
 
 const float bar_range = 255.0;// 100;
 
-
+using namespace std;
 
 class HandGenerator{
 	class Trackbar
@@ -236,6 +236,7 @@ class HandGenerator{
 
 		}
 	
+		float _num_between;
 
 		//26,3
 		//dim=the number of hand parameter(26) , controldim=the number of control paraemter for animation.
@@ -243,8 +244,8 @@ class HandGenerator{
 			_dim = dim;
 			_trackbar = Trackbar(dim);
 
-			classid = -1;
-			//classid = 1;
+			//classid = -1;
+			classid = 0;
 
 			poseidx = 0;
 			_controlDim = controldim;
@@ -256,13 +257,11 @@ class HandGenerator{
 
 			////////////////////////////////////
 			//--hard coding for manual input--//
-
-			posenum_class = 4 * 4 * 4;
 			for (int i = 0; i < 3; i++){
 				posestep[i] = 8; //10: train , 8: test
 				posenum[i] = 4;//6: train, 4: test
-
 			}
+			posenum_class = posenum[0] * posenum[1] * posenum[2];
 			
 			//--hard coding for manual input--//
 			////////////////////////////////////
@@ -373,7 +372,7 @@ class HandGenerator{
 		//finger test for epfl
 		int run_sequence_between_FingerTest(){
 
-			float num_between = 100.0;
+			//float num_between = 100.0;
 
 			//pose(a)
 			if (poseidx == 0){
@@ -417,13 +416,13 @@ class HandGenerator{
 			}
 			//calculate difference between pose(a) and pose(b).
 			for (int j = 0; j < 6; j++)
-				_trackbar.wval[j] = wval_a[j] + (poseidx / num_between)*(wval_b[j] - wval_a[j]);
+				_trackbar.wval[j] = wval_a[j] + (poseidx / _num_between)*(wval_b[j] - wval_a[j]);
 
 			for (int i = 0; i < 5; i++){
-				_trackbar.fval[3 * i + 0][0] = fval_a[3 * i + 0][0] + (poseidx / num_between)*(fval_b[3 * i + 0][0] - fval_a[3 * i + 0][0]);
-				_trackbar.fval[3 * i + 0][2] = fval_a[3 * i + 0][2] + (poseidx / num_between)*(fval_b[3 * i + 0][2] - fval_a[3 * i + 0][2]);
-				_trackbar.fval[3 * i + 1][0] = fval_a[3 * i + 1][0] + (poseidx / num_between)*(fval_b[3 * i + 1][0] - fval_a[3 * i + 1][0]);
-				_trackbar.fval[3 * i + 2][0] = fval_a[3 * i + 2][0] + (poseidx / num_between)*(fval_b[3 * i + 2][0] - fval_a[3 * i + 2][0]);
+				_trackbar.fval[3 * i + 0][0] = fval_a[3 * i + 0][0] + (poseidx / _num_between)*(fval_b[3 * i + 0][0] - fval_a[3 * i + 0][0]);
+				_trackbar.fval[3 * i + 0][2] = fval_a[3 * i + 0][2] + (poseidx / _num_between)*(fval_b[3 * i + 0][2] - fval_a[3 * i + 0][2]);
+				_trackbar.fval[3 * i + 1][0] = fval_a[3 * i + 1][0] + (poseidx / _num_between)*(fval_b[3 * i + 1][0] - fval_a[3 * i + 1][0]);
+				_trackbar.fval[3 * i + 2][0] = fval_a[3 * i + 2][0] + (poseidx / _num_between)*(fval_b[3 * i + 2][0] - fval_a[3 * i + 2][0]);
 			}
 
 			for (int j = 0; j < 6; j++)
@@ -438,7 +437,7 @@ class HandGenerator{
 
 			poseidx++;
 
-			if (poseidx == num_between)
+			if (poseidx == _num_between)
 				return -1;
 
 	
@@ -556,8 +555,8 @@ class HandGenerator{
 								   0,0,0};
 			*/
 
-			float num_between = 50;//50.0;
-			float num_seq = 2 * num_between;
+			//float num_between = 50;//50.0;
+			float num_seq = 2 * _num_between;
 
 			//set 2 key poses.
 			if (poseidx == 0){
@@ -615,38 +614,38 @@ class HandGenerator{
 
 			//calculate difference between pose(a) and pose(b).
 			if (classid == -1)
-				updatePose("All", poseidx,num_between);
+				updatePose("All", poseidx,_num_between);
 			else{
 				if (movingType[classid] == 0){
 					if (halfSeq == true){
-						if (poseidx < num_between)
-							updatePose("thumbFirst", poseidx, num_between);
+						if (poseidx < _num_between)
+							updatePose("thumbFirst", poseidx, _num_between);
 						else
-							updatePose("thumbLast", poseidx, num_between);
+							updatePose("thumbLast", poseidx, _num_between);
 					}
 					else{
-						if (poseidx < num_between)
-							updatePose("thumbLast", poseidx, num_between);
+						if (poseidx < _num_between)
+							updatePose("thumbLast", poseidx, _num_between);
 						else
-							updatePose("thumbFirst", poseidx, num_between);
+							updatePose("thumbFirst", poseidx, _num_between);
 					}
 				}
 				else if (movingType[classid] == 1){
 					if (halfSeq == true){
-						if (poseidx < num_between)
-							updatePose("thumbLast", poseidx, num_between);
+						if (poseidx < _num_between)
+							updatePose("thumbLast", poseidx, _num_between);
 						else
-							updatePose("thumbFirst", poseidx, num_between);
+							updatePose("thumbFirst", poseidx, _num_between);
 					}
 					else{
-						if (poseidx < num_between)
-							updatePose("thumbFirst", poseidx, num_between);
+						if (poseidx < _num_between)
+							updatePose("thumbFirst", poseidx, _num_between);
 						else
-							updatePose("thumbLast", poseidx, num_between);
+							updatePose("thumbLast", poseidx, _num_between);
 					}
 				}
 				else if (movingType[classid] == 2){
-					updatePose("All", poseidx, num_between);
+					updatePose("All", poseidx, _num_between);
 				}
 			}
 
@@ -768,8 +767,8 @@ class HandGenerator{
 				0,2};
 
 
-			float num_between = 2;//50.0;
-			float num_seq = 2 * num_between;
+			//float num_between = 10; // 2,5,10,20
+			float num_seq = 2 * _num_between;
 
 			
 			//set 2 key poses.
@@ -778,38 +777,38 @@ class HandGenerator{
 			
 			//calculate difference between pose(a) and pose(b).
 			if (classid == -1)
-				updatePose("All", poseidx, num_between);
+				updatePose("All", poseidx, _num_between);
 			else{
 				if (movingType[animationIndex] == 0){
 					if (halfSeq == true){
-						if (poseidx < num_between)
-							updatePose("thumbFirst", poseidx, num_between);
+						if (poseidx < _num_between)
+							updatePose("thumbFirst", poseidx, _num_between);
 						else
-							updatePose("thumbLast", poseidx, num_between);
+							updatePose("thumbLast", poseidx, _num_between);
 					}
 					else{
-						if (poseidx < num_between)
-							updatePose("thumbLast", poseidx, num_between);
+						if (poseidx < _num_between)
+							updatePose("thumbLast", poseidx, _num_between);
 						else
-							updatePose("thumbFirst", poseidx, num_between);
+							updatePose("thumbFirst", poseidx, _num_between);
 					}
 				}
 				else if (movingType[animationIndex] == 1){
 					if (halfSeq == true){
-						if (poseidx < num_between)
-							updatePose("thumbLast", poseidx, num_between);
+						if (poseidx < _num_between)
+							updatePose("thumbLast", poseidx, _num_between);
 						else
-							updatePose("thumbFirst", poseidx, num_between);
+							updatePose("thumbFirst", poseidx, _num_between);
 					}
 					else{
-						if (poseidx < num_between)
-							updatePose("thumbFirst", poseidx, num_between);
+						if (poseidx < _num_between)
+							updatePose("thumbFirst", poseidx, _num_between);
 						else
-							updatePose("thumbLast", poseidx, num_between);
+							updatePose("thumbLast", poseidx, _num_between);
 					}
 				}
 				else if (movingType[animationIndex] == 2){
-					updatePose("All", poseidx, num_between);
+					updatePose("All", poseidx, _num_between);
 				}
 			}
 
@@ -830,72 +829,7 @@ class HandGenerator{
 			return 0;
 		}
 
-		//sequence between pose(a) and pose(b). we don't consider collision. 
-		int run_sequence_between_backup(){
-
-			float num_between = 100.0;
-
-			//pose(a)
-			if (poseidx == 0){
-				_trackbar.load(classid);
-				_trackbar.run();
-
-				
-				for (int j = 0; j < 6; j++)
-					wval_a[j] = _trackbar.wval[j];
-				for (int i = 0; i < 15; i++)
-				for (int j = 0; j < 3; j++)
-					fval_a[i][j] = _trackbar.fval[i][j];
-
-				//pose(b)
-				if (classid == 15)
-					_trackbar.load(classid + 2);
-				else
-					_trackbar.load(classid + 1);
-
-				_trackbar.run();
-				for (int j = 0; j < 6; j++)
-					wval_b[j] = _trackbar.wval[j];
-				for (int i = 0; i < 15; i++)
-				for (int j = 0; j < 3; j++)
-					fval_b[i][j] = _trackbar.fval[i][j];
-			}
-			//calculate difference between pose(a) and pose(b).
-			for (int j = 0; j < 6; j++)
-				_trackbar.wval[j] = wval_a[j] + (poseidx/num_between)*(wval_b[j] - wval_a[j]);
-			
-			for (int i = 0; i < 15; i++)
-			for (int j = 0; j < 3; j++)
-				_trackbar.fval[i][j] = fval_a[i][j] + (poseidx / num_between)*(fval_b[i][j] - fval_a[i][j]);
-
-			/*
-			for (int i = 0; i < 5; i++){
-			_trackbar.fval[3 * i + 0][0] = fval_a[3 * i + 0][0] + (poseidx / num_between)*(fval_b[3 * i + 0][0] - fval_a[3 * i + 0][0]);
-			_trackbar.fval[3 * i + 0][2] = fval_a[3 * i + 0][2] + (poseidx / num_between)*(fval_b[3 * i + 0][2] - fval_a[3 * i + 0][2]);
-			_trackbar.fval[3 * i + 1][0] = fval_a[3 * i + 1][0] + (poseidx / num_between)*(fval_b[3 * i + 1][0] - fval_a[3 * i + 1][0]);
-			_trackbar.fval[3 * i + 2][0] = fval_a[3 * i + 2][0] + (poseidx / num_between)*(fval_b[3 * i + 2][0] - fval_a[3 * i + 2][0]);
-			}
-			*/
-			
 		
-
-			poseidx++;
-
-			if (poseidx == (int)num_between){
-				poseidx = 0;
-
-				if (classid == 15)
-					classid += 2;
-				else
-					classid += 1;
-
-				
-			}
-			if (classid == 25)
-				return -1;
-
-			return 0;
-		}
 
 		int test(){
 			//if (cv::waitKey(1) == 'p'){
@@ -1110,7 +1044,10 @@ public:
 
 		int positions_index = 0;// _trackbar.fid2;
 
-		hand.SetJoint(jid, positions_index, fx, fy, fz);
+		if (jid==12)
+			hand.SetJoint(jid, positions_index, fx, -30, fz); //see setPose for '-30'
+		else
+			hand.SetJoint(jid, positions_index, fx, fy, fz);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		//hand.setViewport(640, 480);
@@ -1168,30 +1105,6 @@ public:
 		}
 		cv::imshow("groundtruth", cam_color);
 
-		//save ground truth
-		FILE* fp=0;
-		char filename[100];
-		sprintf(filename, "save/sequence/data/groundtruth.csv");
-		fp = fopen(filename, "a");
-
-		for (int i = 0; i < jidx.size(); i++)
-		{
-			int jid = jidx[i];
-
-			float x = jpos[3 * jid + 0];
-			float y = jpos[3 * jid + 1];
-			float z = jpos[3 * jid + 2];
-			
-
-			char str[100];
-			if (i == (jidx.size()-1))
-				sprintf(str, "%.2f,%.2f,%.2f\n", x, y, z);
-			else
-				sprintf(str, "%.2f,%.2f,%.2f,", x, y, z);
-			fputs(str, fp);
-		}
-		fclose(fp);
-		
 		//color code visualization
 		cv::Mat mask = cam_depth >0;
 		double min;
@@ -1247,59 +1160,58 @@ public:
 
 	void saveJoints(){
 		
-		//label (joints position)
-		/*
+		//get all joints
+		std::vector<float> jpos;
+		hand.GetJointAllPosition(&jpos);
+
+		//set joint index for fingertip.
+		std::vector<int> jidx;
+		jidx.push_back(4); jidx.push_back(9); jidx.push_back(14); jidx.push_back(19); jidx.push_back(24);//
+
+
+		string fname = "save/sequence/groundtruth15D.csv";
+		static ofstream file1(fname);
+
+		for (int i = 0; i < jidx.size(); i++)
 		{
-			FILE* fp;
-			char filenamel[200];
-			sprintf(filenamel, "save/cnn/test/label/label.csv");
-			fp = fopen(filenamel, "a");
+			int jid = jidx[i];
+
+			float x = jpos[3 * jid + 0];
+			float y = jpos[3 * jid + 1];
+			float z = jpos[3 * jid + 2];
 
 			char str[100];
-
-			for (int i = 0; i < 5; i++)
-			for (int j = 0; j < 3; j++){
-			float jpos[3];
-			hand.GetJointPosition(i, j, jpos);
-
-			for (int k = 0; k < 3; k++)
-			jpos[k] = com_hand[k] - jpos[k];
-
-			if (i == 4 & j == 2)
-				sprintf(str, "%.2f,%.2f,%.2f\n", jpos[0], jpos[1], jpos[2]);
+			if (i == (jidx.size() - 1))
+				file1 << x << "," << y << "," << z << endl;
 			else
-				sprintf(str, "%.2f,%.2f,%.2f,", jpos[0], jpos[1], jpos[2]);
-
-			fputs(str, fp);
-			}
-
-			fclose(fp);
+				file1 << x << "," << y << "," << z << ",";
 		}
-		*/
 
-		//label (26D pose)
+	}
+
+	void saveParameters26D(float* com_hand){
+	
+		string fname = "save/sequence/label26D.csv";
+		static ofstream file1(fname);
+
+		char str[100];
+		float jpos[26];
+		getHandPose(jpos);
+
+		//relative position from com_hand
+		for (int i = 0; i < 3; i++)
+			jpos[i] -= com_hand[i];
+
+		for (int i = 0; i < 26; i++)
 		{
-			FILE* fp;
-			char filenamel[200];
-			//sprintf(filenamel, "save/cnn26D/train/label/label26D.csv");
-			sprintf(filenamel, "save/sequence/label/label26D.csv");
-			fp = fopen(filenamel, "a");
-
-			char str[100];
-			float jpos[26];
-			getHandPose(jpos);
-
-			for (int i = 0; i < 26; i++)
-			{
-				if (i == 25)
-					sprintf(str, "%.2f\n", jpos[i]);
-				else
-					sprintf(str, "%.2f,", jpos[i]);
-
-				fputs(str, fp);
-			}
-			fclose(fp);
+			if (i == 25)
+				file1 << jpos[i] << endl;
+			//sprintf(str, "%.2f\n", jpos[i]);
+			else
+				file1 << jpos[i] << ",";
+				//sprintf(str, "%.2f,", jpos[i]);
 		}
+
 	}
 
 
@@ -1330,8 +1242,8 @@ private:
 		hand.SetJoint(10, 0, in[20], 0, 0);
 		hand.SetJoint(11, 0, in[21], 0, 0);
 
-		hand.SetJoint(12, 0, in[22], 0, in[23]);
-		//hand.SetJoint(12, 0, in[22], -30, in[23]);
+		hand.SetJoint(12, 0, in[22], -30, in[23]); // see renderGui for '-30'
+		//hand.SetJoint(12, 0, in[22], 0, in[23]);
 		hand.SetJoint(13, 0, in[24], 0, 0);
 		hand.SetJoint(14, 0, in[25], 0, 0);
 

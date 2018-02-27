@@ -39,7 +39,7 @@ public:
 	int queryFrames(int framein){
 		//color read
 		char filename[200];
-		sprintf(filename, "save/sequence/data/color-%07u.png", framein);
+		sprintf(filename, "save/sequence/vga/color-%07u.png", framein);
 		rgb = cv::imread(filename, 1);
 		if (rgb.empty())
 			return false;
@@ -47,7 +47,7 @@ public:
 			
 
 		//depth read
-		sprintf(filename, "save/sequence/data/depth-%07u.png",  framein);
+		sprintf(filename, "save/sequence/vga/depth-%07u.png",  framein);
 		depth = cv::imread(filename, 2);	
 		if (depth.empty())
 			return false;

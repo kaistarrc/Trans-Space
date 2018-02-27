@@ -210,54 +210,58 @@ public:
 		cam_color.copyTo(out);
 	}
 
-	void recordFrames(){
+	void recordFrames(std::string opt){
 		printf("Record frame: %d \n",_frame);
+
 		//for my algorithm
-		{
-			for (int i = 0; i < width;i++)
-			for (int j = 0; j < height; j++)
-				cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
+		if (opt == "all" || opt == "uvr"){
+			{
+				for (int i = 0; i < width; i++)
+				for (int j = 0; j < height; j++)
+					cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
 
+				char filename[200];
+				sprintf(filename, "save/sequence/vga/depth-%07u.png", _frame);
+
+				cv::imwrite(filename, cam_depth16);
+
+			}
+
+			{
 			char filename[200];
-			sprintf(filename, "save/sequence/data/depth-%07u.png", _frame);
-
-			cv::imwrite(filename, cam_depth16);
-
-		}
-
-		{
-			char filename[200];
-			sprintf(filename, "save/sequence/data/color-%07u.png", _frame);
+			sprintf(filename, "save/sequence/vga/color-%07u.png", _frame);
 			cv::imwrite(filename, cam_color);
+			}
 		}
 
 		//for epfl algorithm
-		{
-			char filename[200];
-			sprintf(filename, "save/sequence/epfl/teaser/color-%07u.png", _frame);
+		if (opt == "all" || opt == "epfl"){
+			{
+				char filename[200];
+				sprintf(filename, "save/sequence/qvga/color-%07u.png", _frame);
 
-			cv::Mat color320t = cv::Mat(height / 2, width / 2, CV_8UC3);
-			cv::Mat color320 = cv::Mat(height / 2, width / 2, CV_8UC3);
-			cv::resize(cam_color, color320t, cv::Size(width / 2, height / 2), 0, 0, 1);
-			for (int i = 0; i < width / 2; i++)
-			for (int j = 0; j < height / 2; j++){
-				color320.at<uchar>(j, 3 * i + 0) = color320t.at<uchar>(j, 3 * i + 2);
-				color320.at<uchar>(j, 3 * i + 1) = color320t.at<uchar>(j, 3 * i + 1);
-				color320.at<uchar>(j, 3 * i + 2) = color320t.at<uchar>(j, 3 * i + 0);
+				cv::Mat color320t = cv::Mat(height / 2, width / 2, CV_8UC3);
+				cv::Mat color320 = cv::Mat(height / 2, width / 2, CV_8UC3);
+				cv::resize(cam_color, color320t, cv::Size(width / 2, height / 2), 0, 0, 1);
+				for (int i = 0; i < width / 2; i++)
+				for (int j = 0; j < height / 2; j++){
+					color320.at<uchar>(j, 3 * i + 0) = color320t.at<uchar>(j, 3 * i + 2);
+					color320.at<uchar>(j, 3 * i + 1) = color320t.at<uchar>(j, 3 * i + 1);
+					color320.at<uchar>(j, 3 * i + 2) = color320t.at<uchar>(j, 3 * i + 0);
+				}
+				cv::imwrite(filename, color320);
 			}
-			cv::imwrite(filename, color320);
-		}
 
-		{
+			{
 			char filename[200];
-			sprintf(filename, "save/sequence/epfl/teaser/depth-%07u.png", _frame);
+			sprintf(filename, "save/sequence/qvga/depth-%07u.png", _frame);
 
 			cv::Mat depth320 = cv::Mat(height / 2, width / 2, CV_16UC1);
 			cv::resize(cam_depth16, depth320, cv::Size(width / 2, height / 2), 0, 0, 1);
 			cv::imwrite(filename, depth320);
 
+			}
 		}
-
 		
 	}
 
@@ -272,8 +276,6 @@ public:
 		if (_camtype.compare("realcamera") == 0)
 			realcamera->releaseFrames();
 		
-		//_frame++;
-
 	}
 	
 
