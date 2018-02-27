@@ -14,12 +14,15 @@
 
 #include <random>
 
+using namespace std;
 //#define DEBUGGING
 
 //#define METHOD0 //fixed boundary
-//#define METHOD1 //floating boundary
 #define METHOD2 //adaptive boundary
+//#define METHOD3 //cnn term in cost function
 
+
+//#define METHOD1 //floating boundary (skip)
 
 #define CONSISTENT_SEED
 
@@ -164,8 +167,8 @@ public:
 
 		std::vector<float> h_26d;
 		//h_26d.push_back(-100); h_26d.push_back(-45); h_26d.push_back(700);
-		h_26d.push_back(5); h_26d.push_back(-45); h_26d.push_back(250);
-		h_26d.push_back(98); h_26d.push_back(6); h_26d.push_back(-4);
+		h_26d.push_back(-28); h_26d.push_back(19); h_26d.push_back(350);
+		h_26d.push_back(58); h_26d.push_back(-18); h_26d.push_back(-4);
 		h_26d.push_back(-19); h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10);
 		h_26d.push_back(-12); h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10);
 		h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10); h_26d.push_back(10);
@@ -218,7 +221,6 @@ public:
 			_mmf->receiveData();
 			_mmf->getLabel(&pose_cnn.at<float>(0, 0));
 
-
 			pose_cnn.at<float>(0, 0) += com_hand[0];
 			pose_cnn.at<float>(0, 1) -= com_hand[1];
 			pose_cnn.at<float>(0, 2) += com_hand[2];
@@ -241,6 +243,7 @@ public:
 		initializePcost(0,particle_num);
 		setBoundary_track(); //check (around gbest_param_pre)
 		
+
 		if (type == "6D"){
 			initializePalm(0, particle_num, gbest_pre, boundary_track);
 		}
@@ -263,7 +266,34 @@ public:
 			calculateGbest(0, particle_num, gbest);
 		}
 
-		
+
+	//check search space from true pose.
+		/*
+		printf("--------tracking boundary--------\n");
+		for (int j = 0; j < dimension; j++){
+			float t = truepose.at<float>(0, j);
+			float b0 = boundary_track.at<float>(0, j);
+			float b1 = boundary_track.at<float>(1, j);
+
+			if (t>b0 && t < b1)
+				printf("[%d]= 0 0\n", j);
+			else
+				printf("[%d]=%.2f %.2f\n", j, t - b0, t - b1);
+		}
+
+		printf("--------cnn boundary--------\n");
+		for (int j = 0; j < dimension; j++){
+			float t = truepose.at<float>(0, j);
+			float b0 = boundary_cnn.at<float>(0, j);
+			float b1 = boundary_cnn.at<float>(1, j);
+
+			if (t>b0 && t<b1)
+				printf("[%d]= 0 0\n", j);
+			else
+				printf("[%d]=%.2f %.2f\n", j, t - b0, t - b1);
+		}
+		*/
+
 		//showObModelParticles("initial");
 #pragma endregion
 
@@ -467,10 +497,10 @@ public:
 			gbest_pre.at<float>(0, j) = gbest.at<float>(0, j);
 		}
 		
-		printf("wt: %.2f %.2f %.2f\n", gbest.at<float>(0, 0), gbest.at<float>(0, 1), gbest.at<float>(0, 2));
-		printf("wr: %.2f %.2f %.2f\n", gbest.at<float>(0, 3), gbest.at<float>(0, 4), gbest.at<float>(0, 5));
-		for (int i = 0; i < 5; i++)
-			printf("F[%d] %.2f %.2f %.2f %.2f\n", i, gbest.at<float>(0, 6 + 4 * i + 0), gbest.at<float>(0, 6 + 4 * i + 1), gbest.at<float>(0, 6 + 4 * i + 2), gbest.at<float>(0, 6 + 4 * i + 3));
+		//printf("wt: %.2f %.2f %.2f\n", gbest.at<float>(0, 0), gbest.at<float>(0, 1), gbest.at<float>(0, 2));
+		//printf("wr: %.2f %.2f %.2f\n", gbest.at<float>(0, 3), gbest.at<float>(0, 4), gbest.at<float>(0, 5));
+		//for (int i = 0; i < 5; i++)
+		//	printf("F[%d] %.2f %.2f %.2f %.2f\n", i, gbest.at<float>(0, 6 + 4 * i + 0), gbest.at<float>(0, 6 + 4 * i + 1), gbest.at<float>(0, 6 + 4 * i + 2), gbest.at<float>(0, 6 + 4 * i + 3));
 		
 		//visualize final solution
 		//showDemo(cam_color,cam_depth);
@@ -905,7 +935,7 @@ public:
 		_costFunct.calculateCost(cost);
 		
 		//cnn pose term
-		
+#ifdef METHOD3
 		for (int i = 0; i < particle_num; i++)
 		{
 			float cost_pose = 0;
@@ -915,6 +945,7 @@ public:
 			cost_pose /= (dimension - 6);
 			cost.at<float>(0, i) += cost_pose;
 		}
+#endif
 		
 		
 	}
@@ -1622,9 +1653,10 @@ public:
 
 	}
 
-	void saveJoints(int frame){
+	void saveJoints(cv::Mat cam_color,int  frame){
 
 		//label (26D pose)
+		/*
 		{
 			FILE* fp;
 			char filenamel[200];
@@ -1644,6 +1676,65 @@ public:
 				fputs(str, fp);
 			}
 			fclose(fp);
+		}
+		*/
+
+		//fingertip (3*5D)
+		{
+			
+			//get all joints
+			std::vector<float> jpos;
+			_renderer->hand.GetJointAllPosition(&jpos);
+
+			//set joint index for fingertip.
+			std::vector<int> jidx;
+			jidx.push_back(4); jidx.push_back(9); jidx.push_back(14); jidx.push_back(19); jidx.push_back(24);//
+
+			string fname = "save/sequence/predictedUVR.csv";
+			static ofstream file1(fname);
+
+			//save joints	
+			for (int k = 0; k < jidx.size(); k++){
+				int i = jidx[k];
+
+				float x = jpos[3 * i + 0];
+				float y = jpos[3 * i + 1];
+				float z = jpos[3 * i + 2];
+
+				char str[100];
+				if (k == (jidx.size() - 1))
+					file1 << x << "," << y << "," << z << endl;
+				else
+					file1 << x << "," << y << "," << z << ",";
+			}
+			
+
+			//visualize joint as circle
+			/*
+			float cal[9] = { 477.9 , 0, 320 ,
+			0, 477.9, 240,
+			0, 0, 1 };
+
+			int color[5][3] = { { 255, 0, 0 }, { 0, 255, 0 }, { 0, 0, 255 }, { 255, 255, 0 }, { 255, 255, 255 } };
+			for (int i = 0; i < jidx.size(); i++)
+			{
+				int jid = jidx[i];
+
+				float x = jpos[3 * jid + 0];
+				float y = jpos[3 * jid + 1];
+				float z = jpos[3 * jid + 2];
+
+				float x_ = x * cal[0] + y * cal[1] + z * cal[2];
+				float y_ = x * cal[3] + y * cal[4] + z * cal[5];
+				float z_ = x * cal[6] + y * cal[7] + z * cal[8];
+				x_ /= z_;
+				y_ /= z_;
+
+				cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(255, 0, 0), 1, 8, 0);
+			}
+			cv::imshow("predicted", cam_color);
+			*/
+			
 		}
 	}
 

@@ -428,32 +428,62 @@ void main()
 
 }
 #endif
-
 #ifndef TWOINPUTTEST
 
+
+//#define SYNTHETIC_RECORD
+//#define SYNTHETIC_TEST
+//#define REALTIME_RECORD
+//#define REALTIME_TEST
+
+//#define EPFL_SUCCESS
+//#define EPFL_RECORD
 
 void main(int argc, char** argv)
 {
 	
-
-
 #pragma region user parameter setting
 	//"realcamera", "playcamera", "glcamera_gui", 
 	//"glcamera_cnn_dataset"
 	//"glcamera_sequence"
 	//"glcamera_test"
 
-	//std::string cameratype = "playcamera";
+	//std::string username = "gypark";
+	std::string username = "epfl";
+
+	std::string cameratype = "playcamera";
 	//std::string cameratype = "realcamera";
-	//std::string cameratype = "glcamera_gui"; 
+#ifdef EPFL_SUCCESS
+	std::string cameratype = "glcamera_gui"; 
+#endif
+#ifdef EPFL_RECORD
 	std::string cameratype = "glcamera_sequence";
+#endif
 	//std::string cameratype = "glcamera_test";
 	//std::string cameratype = "nyucamera";
 
-	std::string trackingtype = "hybrid";
+	std::string trackingtype = "26D";
 
 	//model fitting
 	bool runPSO_enable = true;
+#ifdef EPFL_RECORD
+	bool saveimage_enable = true;
+#else
+	bool saveimage_enable = false;
+#endif
+
+	//blue band
+	bool segmenthand_enable = true;
+
+
+	//save         
+	bool savegroundtruth_enable = false;//save
+	bool savepsoresult_enable = true;
+	bool saveexperiment_enable = false;
+
+	//show
+	bool showgroundtruth_enable = false;//show
+	bool showcnnresult_enable = false;//show
 
 	//
 	int width = 640;
@@ -472,38 +502,31 @@ void main(int argc, char** argv)
 	int height_fb = height_tile * particle_numy;
 
 	float fx, fy, cx, cy;
-	float sx, sy, sz;
+	float sx_palm, sy_palm, sz_palm;
+	float sx_finger, sy_finger, sz_finger;
 	if (cameratype == "nyucamera"){
 		fx = 588;	fy = 587;
 		cx = 320;	cy = 240;
-		sx = 15; sy = 25; sz = 13;
 	}
 	else{
 		fx = 477.9; fy = 477.9;
 		cx = 320.0; cy = 240.0;
-		sx = 12; sy = 11; sz = 13;
+	}
+
+	if (username == "gypark"){
+		sx_palm = 13; sy_palm = 11; sz_palm = 13;
+		sx_finger = 1; sy_finger = 1; sz_finger = 1;
+	}
+	else if (username == "epfl"){
+
+		//good except for pinky.
+		//sx_palm = 10; sy_palm = 8.5; sz_palm = 9.5;  //x :가로  , y: 두께,   z: 세로
+		
+		sx_palm = 8; sy_palm = 10; sz_palm = 8;
+		sx_finger = 1; sy_finger = 1; sz_finger = 1;
+
 	}
 	
-
-	//option
-	//blue band
-	bool segmenthand_enable = true;  
-
-	//transfer mmf image
-	bool sendresultimg_enable = false;//send
-	
-	//save
-	bool saveimage_enable = false;// true;                 
-	bool savegroundtruth_enable = false;//save
-	bool savepsoresult_enable = false;                    
-	bool saveexperiment_enable = false;
-
-	//show
-	bool showgroundtruth_enable = false;//show
-	bool showcnnresult_enable = false;//show
-	
-	
-
 #pragma endregion
 
 #pragma region init class	
@@ -513,7 +536,8 @@ void main(int argc, char** argv)
 	hp.width_tile = width_tile; hp.height_tile = height_tile;
 	hp.particle_numx = particle_numx; hp.particle_numy = particle_numy;
 	hp.handParamNum = handParamNum;
-	hp.sx = sx; hp.sy = sy; hp.sz = sz;
+	hp.sx_palm = sx_palm; hp.sy_palm = sy_palm; hp.sz_palm = sz_palm;
+	hp.sx_finger = sx_finger; hp.sy_finger = sy_finger; hp.sz_finger = sz_finger;
 	hp.changeCameraProperty(fx, fy, cx, cy);
 	
 
@@ -529,13 +553,13 @@ void main(int argc, char** argv)
 
 	//common variable
 	float com_hand[3];
-	cv::Mat cam_depth16= cv::Mat(height, width, CV_16UC1);
-
+	
 	while (1){
+		
 		if (camera.queryFrames() == false)
 			break;
-
 		
+	
 #pragma region camera input
 
 		cv::Mat cam_depth;
@@ -548,21 +572,22 @@ void main(int argc, char** argv)
 
 		cv::Mat cam_color;
 		camera.getMappedColorBuffer(cam_color);
-		cv::imshow("cam_color", cam_color);
-		cv::moveWindow("cam_color", 640 * 2, 0);
+		//cv::imshow("cam_color", cam_color);
+		//cv::moveWindow("cam_color", 640 * 2, 0);
 		//glutSwapBuffers();
 
 #pragma endregion 
 
-
+		
+		
+		
 #pragma region preprocessing
-
 		if (segmenthand_enable==true)
 			preproc.segmentHandFromBand(cam_color, cam_depth);
-	
 		preproc.getComHandxyz(cam_depth,com_hand);
 
 #pragma endregion
+		
 
 #pragma region make cnn image & transfer it to CNN.
 		if (trackingtype=="hybrid"){
@@ -591,7 +616,7 @@ void main(int argc, char** argv)
 		{
 			cv::Mat cmat;
 			camera.getCalibrationMatrix(cmat);
-			handgenerator.showJoints(cam_color, cmat);
+			handgenerator.showJoints(cam_color,cam_depth, cmat);
 		}
 #pragma endregion
 		
@@ -693,24 +718,26 @@ void main(int argc, char** argv)
 #pragma region save ground truth
 		if (saveimage_enable == true)
 			camera.recordFrames();
+		if (cv::waitKey(1) == 'y')
+			camera.recordFrames();
 
 		if (savegroundtruth_enable==true)
 			handgenerator.saveJoints();
 		
 		if (savepsoresult_enable == true)
-			pso.saveJoints(camera._frame);
+			pso.saveJoints(cam_color,camera._frame);
 
-		if (saveimage_enable==true)
-			camera._frame += 1;
-
+		
 #pragma endregion
 
 #pragma region accuracy experiment
 		if (saveexperiment_enable == true){
 			
 			float groundtruth[26];
-			//handgenerator.getHandPose(groundtruth);
-			pso.getTruePose(groundtruth);
+			if (cameratype == "glcamera_sequence" || cameratype == "glcamera_test")
+				handgenerator.getHandPose(groundtruth);
+			else
+				pso.getTruePose(groundtruth);
 
 			float estimated[26];
 			pso.getFinalSolution(estimated);
@@ -739,109 +766,96 @@ void main(int argc, char** argv)
 
 	
 #pragma region gui test	
-
-	/*
+		/*
 		{
 			//set track bar from pso result
-			
+
 			char key = cv::waitKey(1);
 			if (key == 'c'){
 				float* solp = &pso.gbest.at<float>(0, 0);
 				handgenerator.run_setTbarFromResult(solp);
+				handgenerator.save_trackbar();
 			}
 			if (key == 'v'){ //not implemented yet.
-				for (int j = 0; j < 6;j++)
-				pso.gbest.at<float>(0,j) = handgenerator._trackbar.wval[j];
+				for (int j = 0; j < 6; j++)
+					pso.gbest.at<float>(0, j) = handgenerator._trackbar.wval[j];
 
 				for (int i = 0; i < 5; i++)
 				{
-					pso.gbest.at<float>(0, 6 + 4 * i + 0) = handgenerator._trackbar.fval[1 + 3 * i+0][0];
-					pso.gbest.at<float>(0, 6 + 4 * i + 1) = handgenerator._trackbar.fval[1 + 3 * i+0][1];
-					pso.gbest.at<float>(0, 6 + 4 * i + 2) = handgenerator._trackbar.fval[1 + 3 * i+1][0];
-					pso.gbest.at<float>(0, 6 + 4 * i + 3) = handgenerator._trackbar.fval[1 + 3 * i+2][0];
+					pso.gbest.at<float>(0, 6 + 4 * i + 0) = handgenerator._trackbar.fval[1 + 3 * i + 0][0];
+					pso.gbest.at<float>(0, 6 + 4 * i + 1) = handgenerator._trackbar.fval[1 + 3 * i + 0][1];
+					pso.gbest.at<float>(0, 6 + 4 * i + 2) = handgenerator._trackbar.fval[1 + 3 * i + 1][0];
+					pso.gbest.at<float>(0, 6 + 4 * i + 3) = handgenerator._trackbar.fval[1 + 3 * i + 2][0];
 				}
 			}
-			
+
 			//run gui
-			if (sendresultimg_enable==true)
-			{
-				handgenerator._trackbar.run();
-				handgenerator.run_gui("depth");
 
-				cv::Mat model_depth;
-				glrenderer.getOrigImage(model_depth, "depth");
-				cv::imshow("manual", model_depth);
-				//cvMoveWindow("manual", 1000, 0);
+			handgenerator._trackbar.run();
+			handgenerator.run_gui2hand("color");
 
-				if (cv::waitKey(1) == 's')
-					handgenerator.save_trackbar();
+			cv::Mat model_depth;
+			glrenderer.getOrigImage(model_depth, "color");
+			cv::imshow("manual", model_depth);
+			//cvMoveWindow("manual", 1000, 0);
 
-#pragma region make cnn image & transfer it to CNN.
-				cv::Mat depth_cnn;
-				preproc.makeCnnImage(model_depth);
-				preproc.getCnnImage(depth_cnn);
+		// make cnn image & transfer it to CNN.
+			//cv::Mat depth_cnn;
+			//preproc.makeCnnImage(model_depth);
+			//preproc.getCnnImage(depth_cnn);
 
-				if (mmf.getimg_bool == false)
-				{
-					mmf.getimg_bool = true;
-					//mmf._cnnimg = depth_norm;
-					//mmf._cnnimg= depth_cnn;
-					depth_cnn.copyTo(mmf._cnnimg);
-					//mmf._cnnimg = cam_colordepth;
-
-					state = pthread_create(&thread_id, NULL, sendImage_learning, NULL); 
-					pthread_detach(thread_id);
-				}
-			}
-#pragma endregion
-
-			
-			////add	
-			//cv::Mat fimg;
-			//cv::addWeighted(cam_color, 0.3, model_color, 0.9, 0, fimg);
-			//cv::imshow("manual2", fimg);
-			//cvMoveWindow("manual2", 1000, 500);
-			//cv::waitKey(1);
-
-			////hard coding for debugging.
-			//handgenerator.run_gui("depth");
-			//cv::Mat model_depth;
-			//glrenderer.getOrigImage(model_depth, "depth");
-
-			//cv::Mat difdepth = model_depth - cam_depth;
-			//cv::Mat difdepth8u = cv::Mat(480, 640, CV_8UC3);
-			//difdepth8u.setTo(0);
-			//for (int i = 0; i < 640; i++)
-			//for (int j = 0; j < 480; j++)
+			//if (mmf.getimg_bool == false)
 			//{
-			//	difdepth.at<float>(j, i) = abs(difdepth.at<float>(j, i));
+			//	mmf.getimg_bool = true;
+			//	//mmf._cnnimg = depth_norm;
+			//	//mmf._cnnimg= depth_cnn;
+			//	depth_cnn.copyTo(mmf._cnnimg);
+			//	//mmf._cnnimg = cam_colordepth;
 
-			//	//if (difdepth.at<float>(j, i) < 0)
-			//	//	difdepth.at<float>(j, i) = 0;
+			//	state = pthread_create(&thread_id, NULL, sendImage_learning, NULL); 
+			//	pthread_detach(thread_id);
 			//}
-			//cv::normalize(difdepth, difdepth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
-			//cv::imshow("difmanual", difdepth8u);
-			//cv::waitKey(1);
 		}
-	*/
-		
+*/
 #pragma endregion
-
+	
 
 #pragma region release
-
+		
 		if (cv::waitKey(1) == 'j'){
 			saveimage_enable = true;
 			savepsoresult_enable = false;
 		}
+		
+		
 
-		camera.releaseFrames();
-		cv::waitKey(1);
+	
+
+		//debugging with synthetic data
+		
+		//for (int j = 0; j < 26; j++)
+		//	printf("err[%d]=%f\n", j, pso.gbest.at<float>(0, j) - pso.truepose.at<float>(0, j));
+		
+		//if (pso.gbestIdx < particle_num / 2)
+		//	printf("[%d]got from tracking\n",camera._frame);
+		//else
+		//	printf("[%d]got from cnn\n",camera._frame);
+		
+		
+		/*
+		while (1){
+			if (cv::waitKey(1) == '0')
+				break;
+
+			if (cv::waitKey(1) == 'q')
+				exit(1);
+		}
+		*/
 
 		if (cv::waitKey(1) == 'q')
 			break;
 
-		if (cameratype=="playcamera"){
+		if (cameratype == "playcamera"){
 			pso._frame = camera._frame;
 			camera._frame++;
 		}
@@ -851,27 +865,17 @@ void main(int argc, char** argv)
 			pso._frame = camera._frame;
 			camera._frame++;
 		}
-		else if(cameratype == "nyucamera")
+		else if (cameratype == "nyucamera")
 			camera._frame++;
-
-
-		//debugging with synthetic data
 		
-		//for (int j = 0; j < 26; j++)
-		//	printf("err[%d]=%f\n", j, pso.gbest.at<float>(0, j) - pso.truepose.at<float>(0, j));
-		//printf("gbestidx:%d\n", pso.gbestIdx);
+		//
+		//if (saveimage_enable == true)
+		//	camera._frame += 1;
+		//
 
-		
-		while (1){
-			if (cv::waitKey(100) == '0')
-				break;
 
-			if (cv::waitKey(100) == 'q')
-				exit(1);
-
-		}
-		
-		
+		camera.releaseFrames();
+		cv::waitKey(1);
 		
 		
 		

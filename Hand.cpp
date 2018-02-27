@@ -247,6 +247,12 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 			BoneInfo bi;
 			bone_data.push_back(bi);
 			bone_data[BoneIndex].BoneOffset = input_scene->mMeshes[0]->mBones[i]->mOffsetMatrix;
+
+			bone_data[BoneIndex].bonePosition.x = bone_data[BoneIndex].BoneOffset.m[0][3];
+			bone_data[BoneIndex].bonePosition.y = bone_data[BoneIndex].BoneOffset.m[1][3];
+			bone_data[BoneIndex].bonePosition.z = bone_data[BoneIndex].BoneOffset.m[2][3];
+			bone_data[BoneIndex].bonePosition.w = 1;
+
 			bone_data[BoneIndex].name = BoneName;
 			bone_map[BoneName] = BoneIndex;
 		}
@@ -259,7 +265,8 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 			float Weight = input_scene->mMeshes[0]->mBones[i]->mWeights[j].mWeight;
 			Bones[VertexID].AddBoneData(BoneIndex, Weight);
 
-			if (Weight >0.0f)	// if(Weight >0.7f)
+			//if(Weight>0.0f)
+			if(Weight >0.7f)
 			{
 				//printf("boneindex:%d more than weight\n", BoneIndex);
 				bone_data[BoneIndex].pos.x += input_scene->mMeshes[0]->mVertices[VertexID].x;// * Weight;
@@ -293,6 +300,8 @@ bool LoadData(std::string model_file, char* property_file, char* texture_path, b
 	std::sort(ff.begin(), ff.end());
 	for (int i = 0; i < Bones.size(); i++)
 		Bones[i].FinishData();
+	//printf("bonesize:%d\n", Bones.size());
+	//printf("bone_datasize:%d\n", bone_data.size());
 	for (int i = 0; i < bone_data.size(); i++)
 	{
 		//printf("i:%d\n", i);
@@ -652,17 +661,11 @@ void ElaborateBonesPositions(const aiNode* pNode, const Matrix4f& ParentTransfor
 	if (bone_map.find(NodeName) != bone_map.end())
 	{
 		int BoneIndex = bone_map[NodeName];
-		//check
-		//printf("Nodename:%s\n", NodeName);
-		//printf("boneindex:%d\n", BoneIndex);
-		//printf("curret position:%d\n", bone_data[BoneIndex].current_position);
-		//for (int i = 0; i < 4;i++)
-		//for (int j = 0; j < 4; j++)
-		//	printf("[%d][%d]=%f\n", i, j, bone_data[BoneIndex].possible_positions[bone_data[BoneIndex].current_position].impRot.m[i][j]);
-		//printf("NodeName:%s boneindex:%d\n", NodeName,BoneIndex);
-		//
+		
 		GlobalTransformation = GlobalTransformation * bone_data[BoneIndex].possible_positions[bone_data[BoneIndex].current_position].impRot;
 		bone_data[BoneIndex].FinalTransformation = matrix_globalInverseTransform * GlobalTransformation * bone_data[BoneIndex].BoneOffset;
+	
+		bone_data[BoneIndex].tempMat = GlobalTransformation;
 	}
 
 	for (unsigned int i = 0; i < pNode->mNumChildren; i++)
@@ -700,40 +703,56 @@ void ComputeBoneStatic(std::vector<Matrix4f>& Transforms)
 
 	Transforms.resize(bone_count);
 
+	//distance
+	/*
+	for (int i = 0; i < bone_count-1; i++){
+		float x0 = bone_data[i].pos.x;
+		float y0 = bone_data[i].pos.y;
+		float z0 = bone_data[i].pos.z;
+		float x1 = bone_data[i+1].pos.x;
+		float y1 = bone_data[i+1].pos.y;
+		float z1 = bone_data[i+1].pos.z;
+
+		float dx = x0 - x1; float dy = y0 - y1; float dz = z0 - z1;
+		float dist = sqrt(dx*dx + dy*dy + dz*dz);
+		printf("0dist[%d]=%f\n", i, dist);
+	}
+	*/
+
 	for (int i = 0; i < bone_count; i++)
 	{
 		//printf("check[%d]\n", i);
-
+		//printf("pos[%d]=%.2f %.2f %.2f\n", i,bone_data[i].pos.x, bone_data[i].pos.y, bone_data[i].pos.z);
 		Transforms[i] = bone_data[i].FinalTransformation;
 		//printf("Transforms:%f\n", Transforms[i].m[0][0]);
 
 		bone_data[i].pos_transformed = Transforms[i] * bone_data[i].pos;
+		bone_data[i].bonePosition_transformed = Transforms[i] * bone_data[i].bonePosition;
 		//printf("bone_data[i].pos:%f\n",bone_data[i].pos.x);
 		//printf("[%d]%f %f %f\n", i, bone_data[i].pos_transformed.x, bone_data[i].pos_transformed.y, bone_data[i].pos_transformed.z);
 		//printf("\n");
 	}
+
+	
+
+	//printf("compute bone static\n");
 }
 void RenderBones()
 {
 	for (int i = 0; i < 25; i++)
 	{
-		//printf("p %.2f %.2f %.2f\n", bone_data[i].pos_transformed.x, bone_data[i].pos_transformed.y, bone_data[i].pos_transformed.z);
 		glTranslatef(bone_data[i].pos_transformed.x, bone_data[i].pos_transformed.y, bone_data[i].pos_transformed.z);
 		glColor3f(1.0f, 0.0f, 1.0f);
 		//glutWireSphere(2, 2, 2);
 		glutSolidSphere(2, 2, 2);
 	}
-	/*
-	int i = bone_to_render;
-	glTranslatef(bone_data[i].pos_transformed.x, bone_data[i].pos_transformed.y, bone_data[i].pos_transformed.z);
-	glColor3f(1.0f, 0.0f, 1.0f);
-	glutWireSphere(2, 2, 2);
-	*/
+	
 }
 
 Hand::Hand(void)
 {
 	//matrix_model = Matrix4f::MakeRotationMatrix(0.0f, 0.0f, -90.0f) * Matrix4f::MakeTranslationMatrix(0.0f, 0.0f, 0.0f);
+	
 	
 	joints[0] = "R_thumb_meta";
 	joints[1] = "R_thumb_a";
@@ -754,7 +773,28 @@ Hand::Hand(void)
 	joints[12] = "R_pinky_a";
 	joints[13] = "R_pinky_b";
 	joints[14] = "R_pinky_c";
-
+	
+	/*
+	joints[0] = "finger5joint1";
+	joints[1] = "finger5joint2";
+	joints[2] = "finger5joint3";
+	joints[3] = "Bone.003";
+	joints[4] = "finger4joint1";
+	joints[5] = "finger4joint2";
+	joints[6] = "finger4joint3";
+	joints[7] = "Bone.002";
+	joints[8] = "finger3joint1";
+	joints[9] = "finger3joint2";
+	joints[10] = "finger3joint3";
+	joints[11] = "Bone.001";
+	joints[12] = "finger2joint1";
+	joints[13] = "finger2joint2";
+	joints[14] = "finger2joint3";
+	joints[15] = "Bone";
+	joints[16] = "finger1joint1";
+	joints[17] = "finger1joint2";
+	joints[18] = "finger1joint3";
+	*/
 }
 Hand::~Hand(void)
 {
@@ -955,7 +995,7 @@ void Hand::Render(float r_x, float r_y, float r_z, bool cont_rot, float wx, floa
 
 	//matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(15, 15, 13);
 	//matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(12, 11, 13);//(13,13,13)
-	matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(param.sx, param.sy, param.sz);
+	matrix_model = Matrix4f::MakeRotationMatrix(r_x, r_y, r_z) * Matrix4f::MakeScalingMatrix(param.sx_palm, param.sy_palm, param.sz_palm);
 	matrix_translation = Matrix4f::MakeTranslationMatrix(wx, wy,wz);
 	matrix_modelViewProj = matrix_projection * matrix_translation * matrix_model;
 	matrix_modelView = matrix_translation*matrix_model;
@@ -1008,20 +1048,30 @@ void Hand::SetJoint(int jn, int pc, float x, float y, float z)
 	//printf("--setjoint function--\n");
 	assert(bone_map.find(joints[jn]) != bone_map.end());
 	int BoneIndex = bone_map[joints[jn]];
-	//printf("bonemapsize:%d\n", bone_map.size());
-	//for (int i = 1; i < 19; i++)
-	//	printf("bonemap joint name:%s\n", bone_map[joints[i]]);
-	//printf("joints[jn]:%s\n", joints[jn]);
-	//printf("bonemap[joints[jn]]:%d\n", bone_map[joints[jn]]);
-	//printf("\n");
-	//if (pc != 0)
-	//{
-	//printf("(setjoint) BoneIndex:%d\n", BoneIndex);
+	
 	bone_data[BoneIndex].possible_positions[pc].impRot = Matrix4f::MakeRotationMatrix(x, y, z);
+
+	float sx = 1.0;
+	float sy = 1.0;
+	float sz = 1.0;
+
+	//if (jn == 0)
+	//	sy = 0.7;
+	//if (jn == 3)
+	//	sy = 0.7;
+	//if (jn == 6)
+	//	sy = 0.7;
+	//if (jn == 9)
+	//	sy = 0.7;
+	//if (jn == 12)
+	//	sy = 0.7;
+
+	bone_data[BoneIndex].possible_positions[pc].impRot = Matrix4f::MakeRotationMatrix(x, y, z)*Matrix4f::MakeScalingMatrix(sx,sy,sz);//(1,1.08,1);
+
 	bone_data[BoneIndex].possible_positions[pc].imp_rot_x = x;
 	bone_data[BoneIndex].possible_positions[pc].imp_rot_y = y;
 	bone_data[BoneIndex].possible_positions[pc].imp_rot_z = z;
-	//}
+
 	bone_data[BoneIndex].current_position = pc;
 	bone_to_render = BoneIndex;
 }
@@ -1048,19 +1098,31 @@ void Hand::GetJointPosition(int fi, int ji, float* out)
 
 void Hand::GetJointAllPosition(std::vector<float>* out){
 
-	
+	//printf("bonemapsize:%d\n", bone_map.size());
 	for (int i = 0; i<bone_map.size(); i++)
 	{
 	
+		/*
 		bone_data[i].pos_transformed = matrix_modelView*bone_data[i].pos_transformed;
-
+		bone_data[i].pos_transformed = matrix_modelView*bone_data[i].pos;
 		float x = bone_data[i].pos_transformed.x;
 		float y = -bone_data[i].pos_transformed.y;
 		float z = bone_data[i].pos_transformed.z;
+		*/
+
+		//Matrix4f mat = matrix_modelView*bone_data[i].FinalTransformation;
+		
+		//Matrix4f mat = matrix_modelView*bone_data[i].FinalTransformation;
+		Matrix4f mat = matrix_modelView*matrix_globalInverseTransform*bone_data[i].tempMat;
+		float x = mat.m[0][3];
+		float y = -mat.m[1][3];
+		float z = mat.m[2][3];
+		
 
 		out->push_back(x);
 		out->push_back(y);
 		out->push_back(z);
+		
 
 	}
 

@@ -22,6 +22,8 @@ public:
 	cv::Mat maskwrist;
 	cv::Mat vimg;
 
+	cv::Mat vecimg;
+
 	Preprocessing(){
 
 	}
@@ -39,6 +41,7 @@ public:
 		maskwrist = cv::Mat(height, width, CV_8UC1);
 		vimg = cv::Mat(height, width, CV_8UC1);
 
+		vecimg = cv::Mat(height, width, CV_32FC1);
 	}
 
 	~Preprocessing(){
@@ -247,7 +250,7 @@ public:
 
 	void segmentHandFromBand(cv::Mat color, cv::Mat& out)
 	{
-		cv::Mat vecimg = cv::Mat(height, width, CV_32FC1);
+		//cv::Mat vecimg = cv::Mat(height, width, CV_32FC1);
 		mask1.setTo(0);
 		mask2.setTo(0);
 
@@ -268,7 +271,7 @@ public:
 			if (vimg.at<uchar>(j, i)>150)
 				maskwrist.at<uchar>(j, i) = 255;
 		}
-
+		
 		//calculate depth of wrist band.
 		float wristcom[3] = { 0, 0, 0 };
 		float count = 0;
@@ -297,8 +300,8 @@ public:
 				mask1.at<uchar>(j, i) = 255;
 			//depth_t.at<float>(j, i) = 0;
 		}
-
-
+		
+		
 
 		//test
 		//calculate com of segmented hand first.
@@ -323,7 +326,7 @@ public:
 			vec_ref.at<float>(1, 0) = com2d[1] - wristcom[1];
 			cv::Mat vec1 = cv::Mat(2, 1, CV_32FC1);
 
-
+			
 			for (int i = 0; i < width; i++)
 			for (int j = 0; j < height; j++){
 				if (depth_t.at<float>(j, i) == 0)
@@ -334,17 +337,22 @@ public:
 				vec1.at<float>(1, 0) = j - wristcom[1];
 
 				//calculate theta
-				float a = vec1.dot(vec_ref) / (cv::norm(vec1)*cv::norm(vec_ref));
+				//float a = vec1.dot(vec_ref) / (cv::norm(vec1)*cv::norm(vec_ref));
+				float v1x = vec1.at<float>(0, 0); float v1y = vec1.at<float>(1, 0);
+				float v2x = vec_ref.at<float>(0, 0); float v2y = vec_ref.at<float>(1, 0);
+				float a = (v1x*v2x + v1y*v2y) / (sqrt(v1x*v1x + v1y*v1y)*sqrt(v2x*v2x + v2y*v2y));
+
+		
 				vecimg.at<float>(j, i) = a;
 
 				//if (a < 0 | (a>20))
 				if (a<0.5)
 					mask2.at<uchar>(j, i) = 255;
 			}
+			
 
 		}
-		cv::waitKey(1);
-
+		
 
 		//test
 		for (int i = 0; i < width; i++)
@@ -354,6 +362,7 @@ public:
 				out.at<float>(j, i) = 0;
 		}
 
+		
 		//cv::imshow("maskwrist", maskwrist);
 		//cv::imshow("mask1", mask1);
 		//cv::imshow("mask2", mask2);

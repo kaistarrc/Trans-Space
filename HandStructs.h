@@ -271,8 +271,12 @@ struct BoneInfo
 
 	Matrix4f BoneOffset;
 	Matrix4f FinalTransformation;   
-	Matrix4f::Vector4f pos;
-	Matrix4f::Vector4f pos_transformed;
+	Matrix4f tempMat; //gypark
+
+	Matrix4f::Vector4f pos; //depends on weight of mesh.
+	Matrix4f::Vector4f pos_transformed; //depends on weight of mesh.
+	Matrix4f::Vector4f bonePosition;  //one bone position. //gypark
+	Matrix4f::Vector4f bonePosition_transformed; //one bone position. //gypark
 	int pos_count;
 
 	int current_position;
@@ -283,6 +287,7 @@ struct BoneInfo
 		current_position = 0;
 		pos_count = 0;
 		pos.x = 0.0f; pos.y = 0.0f; pos.z = 0.0f; pos.w = 0.0f;
+		bonePosition.x = 0.0f; bonePosition.y = 0.0f; bonePosition.z = 0.0f;
 	}
 };
 struct Rotation

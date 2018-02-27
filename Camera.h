@@ -46,8 +46,8 @@ public:
 		calib_mat.at<float>(1, 0) = 0.0; calib_mat.at<float>(1, 1) = 477.9; calib_mat.at<float>(1, 2) = 240.0;
 		calib_mat.at<float>(2, 0) = 0.0; calib_mat.at<float>(2, 1) = 0.0; calib_mat.at<float>(2, 2) = 1.0;
 
-		//_frame = 0;
-		_frame = 2;
+		_frame = 0;
+		//_frame = 2;
 		
 	}
 
@@ -100,6 +100,7 @@ public:
 		}
 		else if (_camtype.compare("glcamera_sequence") == 0){
 			//if (handgenerator->_posesetgenerator.run_sequence() == -1)
+			//if (handgenerator->_posesetgenerator.run_sequence_between_FingerTest() == -1)
 			if (handgenerator->_posesetgenerator.run_sequence_between() == -1)
 				return false;
 		}
@@ -185,6 +186,7 @@ public:
 
 
 		//change color to white.
+		/*
 		if (_camtype != "realcamera" && _camtype !="nyucamera" ){
 			for (int i = 0; i < width; i++)
 			for (int j = 0; j < height; j++)
@@ -202,13 +204,14 @@ public:
 				}
 			}
 		}
+		*/
 		
 
 		cam_color.copyTo(out);
 	}
 
 	void recordFrames(){
-		
+		printf("Record frame: %d \n",_frame);
 		//for my algorithm
 		{
 			for (int i = 0; i < width;i++)

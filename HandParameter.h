@@ -1,27 +1,47 @@
 #ifndef __HANDPARAMETER_H__
 #define __HANDPARAMETER_H__
 
-
-
 const float boundary_max[2][26] = {
 	{ -100, -100, 0,
 	-180, -180, -180,
 
-	-30, -70, -90, -90,  //0: stretch
-	-90, -20, -90, -90,
-	-90, -16, -90, -90,
+	-30, -20, -90, -90,  //0: stretch
+	-90, -25, -90, -90,
 	-90, -10, -90, -90,
-	-90, -20, -90, -90 },
+	-90, -5, -90, -90,
+	-90, -5, -90, -90 },
 
-	{ 100, 100, 300,  
+	{ 100, 100, 600,
 	180, 180, 180,
 
-	50, 20, 0, 0,
+	20, 20, 0, 0,//50, 20, 0, 0,
 	0, 0, 0, 0,		//90: bend
 	0, 5, 0, 0,
 	0, 10, 0, 0,
 	0, 20, 0, 0 }
 };
+
+/*
+const float boundary_max[2][26] = {
+	{ -100, -100, 0,
+	-180, -180, -180,
+
+	-30, -70, -90, -90,  //0: stretch
+	-90, -30, -90, -90,
+	-90, -16, -90, -90,
+	-90, -10, -90, -90,
+	-90, -20, -90, -90 },
+
+	{ 100, 100, 600,  
+	180, 180, 180,
+
+	20, 0, 0, 0,//50, 20, 0, 0,
+	0, 0, 0, 0,		//90: bend
+	0, 5, 0, 0,
+	0, 10, 0, 0,
+	0, 15, 0, 0 }
+};
+*/
 
 
 
@@ -40,9 +60,12 @@ struct HandParameters
 	float cy;
 	float fx;
 	float fy;
-	float sx;
-	float sy;
-	float sz;
+	float sx_palm;
+	float sy_palm;
+	float sz_palm;
+	float sx_finger;
+	float sy_finger;
+	float sz_finger;
 	float render_animationSpeed;
 	int width_tile;
 	int height_tile;
@@ -111,13 +134,30 @@ struct HandParameters
 		hp.setup_shader_boneUniformName = "bone_matrix";
 		hp.setup_model_path_full = "data/hand_model_full.dae";
 
-		
+#pragma region good model
 		//hp.setup_model_path_low = "data/wristHand_2.dae"; //wrist is changed to bigger one.
+		//hp.setup_model_path_low = "data/wristHand_1.dae"; //
 		//hp.setup_modelTexture_path = "data/wristHand_2.bmp";
-	
-		hp.setup_model_path_low = "data/hand_2.dae";
-		hp.setup_modelTexture_path = "data/hand_1.bmp";
 
+		//hp.setup_model_path_low = "data/hand_2.dae";   //good
+		//hp.setup_modelTexture_path = "data/hand_1.bmp";  
+#pragma endregion
+
+#pragma region better model
+		hp.setup_model_path_low = "data/hand_20180226_1.dae";
+		hp.setup_modelTexture_path = "data/hand_2.bmp";
+		
+
+		//hp.setup_model_path_low = "data/wristHand_20180226_1.dae";
+		//hp.setup_modelTexture_path = "data/wristHand_1.bmp";
+		
+#pragma endregion
+
+
+		//hp.setup_model_path_low = "data/hand_model.dae"; //original liphand.
+		//hp.setup_model_path_low = "data/hand_new5.dae"; //original leap motion
+
+		
 
 		hp.setup_model_property_path = "data/hand.property";
 		hp.setup_model_rules_path = "data/hand.property.rules";
@@ -141,9 +181,12 @@ struct HandParameters
 		dst->cy = cy;
 		dst->fx = fx;
 		dst->fy = fy;
-		dst->sx = sx;
-		dst->sy = sy;
-		dst->sz = sz;
+		dst->sx_palm = sx_palm;
+		dst->sy_palm = sy_palm;
+		dst->sz_palm = sz_palm;
+		dst->sx_finger = sx_finger;
+		dst->sy_finger = sy_finger;
+		dst->sz_finger = sz_finger;
 		dst->render_animationSpeed = render_animationSpeed;
 
 		dst->width_tile = width_tile;
