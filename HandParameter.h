@@ -14,7 +14,7 @@ const float boundary_max[2][26] = {
 	{ 100, 100, 600,
 	180, 180, 180,
 
-	20, 20, 0, 0,//50, 20, 0, 0,
+	20, 40, 0, 0,//50, 20, 0, 0,
 	0, 0, 0, 0,		//90: bend
 	0, 5, 0, 0,
 	0, 10, 0, 0,
@@ -148,7 +148,7 @@ struct HandParameters
 		hp.setup_modelTexture_path = "data/hand_2.bmp";
 		
 
-		//hp.setup_model_path_low = "data/wristHand_20180226_1.dae";
+		//hp.setup_model_path_low = "data/wristHand_20180226_2.dae";
 		//hp.setup_modelTexture_path = "data/wristHand_1.bmp";
 		
 #pragma endregion
@@ -156,8 +156,6 @@ struct HandParameters
 
 		//hp.setup_model_path_low = "data/hand_model.dae"; //original liphand.
 		//hp.setup_model_path_low = "data/hand_new5.dae"; //original leap motion
-
-		
 
 		hp.setup_model_property_path = "data/hand.property";
 		hp.setup_model_rules_path = "data/hand.property.rules";

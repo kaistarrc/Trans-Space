@@ -50,12 +50,12 @@ void* sendImage_learning(void* data)
 	return((void*)1);
 }
 
-//#define SAVE_TRAININGSET
+#define SAVE_TRAININGSET
 //#define TEST_REALTIME
 //#define SAVE_SYNTHETIC_SEQUENCE_COMPARISON
 //#define TEST_ON_SEQUENCE
 
-#define SAVE_TRACKBAR_POSTURE
+//#define SAVE_TRACKBAR_POSTURE
 
 
 void main(int argc, char** argv)
@@ -128,7 +128,7 @@ void main(int argc, char** argv)
 
 #ifdef TEST_REALTIME
 	cameratype = "realcamera";
-	trackingtype = "hybrid";
+	trackingtype = "26D";
 	runPSO_enable = true;
 	segmenthand_enable = true;
 
@@ -144,7 +144,7 @@ void main(int argc, char** argv)
 	upframe_enable = true;
 	showgroundtruth_enable = true;
 
-	setup_model_path_low = "data/wristHand_20180226_1.dae";
+	setup_model_path_low = "data/wristHand_20180226_2.dae";
 	setup_modelTexture_path = "data/wristHand_1.bmp";
 
 	num_between = 20;
@@ -153,7 +153,7 @@ void main(int argc, char** argv)
 
 #ifdef TEST_ON_SEQUENCE
 	cameratype = "playcamera";
-	trackingtype = "hybrid"; //"26D", "hybrid"
+	trackingtype = "26D"; //"26D", "hybrid"
 	runPSO_enable = true;
 	segmenthand_enable = true;
 	savepsoresult_enable = true;
@@ -167,7 +167,7 @@ void main(int argc, char** argv)
 #ifdef SAVE_TRACKBAR_POSTURE
 	cameratype = "glcamera_gui";
 
-	setup_model_path_low = "data/wristHand_20180226_1.dae";
+	setup_model_path_low = "data/wristHand_20180226_2.dae";
 	setup_modelTexture_path = "data/wristHand_1.bmp";
 
 	showgroundtruth_enable = true;

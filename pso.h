@@ -22,9 +22,9 @@ using namespace std;
 //adaptive:  METHOD2,  METHOD3
 
 //#define METHOD0 //fixed boundary
-#define METHOD2 //adaptive boundary
+//#define METHOD2 //adaptive boundary
 
-#define METHOD3 //cnn term in cost function
+//#define METHOD3 //cnn term in cost function
 
 
 //#define METHOD1 //floating boundary (skip)
@@ -977,6 +977,8 @@ public:
 
 	void showObModel(std::string wname,cv::Mat cam_color,cv::Mat cam_depth,float* solp,std::string opt)
 	{
+		//for (int i = 0; i < 5; i++)
+		//	printf("[%d]=%f\n", i, solp[6 + 1 + 4 * i]);
 
 		//--color
 		//float* solp = &position.at<float>(0, 0);
