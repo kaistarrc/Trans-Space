@@ -3,7 +3,11 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <sstream>
+#include <string>
+#include <iomanip>
 
+using namespace std;
 
 class PlayCamera
 {
@@ -35,8 +39,44 @@ public:
 	}
 
 
-
 	int queryFrames(int framein){
+
+		{
+			string data_path = "save/sequence/";
+			ostringstream stringstream;
+			stringstream << std::setw(7) << std::setfill('0') << framein;
+			rgb = cv::imread(data_path + _testType + "/color-" + stringstream.str() + ".png", 1);
+			if (rgb.empty())
+				return false;
+		}
+
+		{
+			string data_path = "save/sequence/";
+			ostringstream stringstream;
+			stringstream << std::setw(7) << std::setfill('0') << framein;
+			depth = cv::imread(data_path + _testType + "/depth-" + stringstream.str() + ".png", 2);
+			if (depth.empty())
+				return false;
+		}
+
+
+		//color read
+		//char filename[200];
+		//sprintf(filename, "save/sequence/vga/color-%07u.png", framein);
+		//rgb = cv::imread(filename, 1);
+		//if (rgb.empty())
+		//	return false;
+
+		//depth read
+		//sprintf(filename, "save/sequence/vga/depth-%07u.png", framein);
+		//depth = cv::imread(filename, 2);
+		//if (depth.empty())
+		//	return false;
+
+		return true;
+	}
+
+	int queryFrames_orig(int framein){
 		//color read
 		char filename[200];
 		sprintf(filename, "save/sequence/vga/color-%07u.png", framein);
@@ -89,6 +129,8 @@ public:
 
 	cv::Mat cameraMatrix;
 	int _frame;
+
+	string _testType;
 
 private:
 	int width, height;

@@ -101,7 +101,9 @@ public:
 		else if (_camtype.compare("glcamera_sequence") == 0){
 			//if (handgenerator->_posesetgenerator.run_sequence() == -1)
 			//if (handgenerator->_posesetgenerator.run_sequence_between_FingerTest() == -1)
-			if (handgenerator->_posesetgenerator.run_sequence_between() == -1)
+			//if (handgenerator->_posesetgenerator.run_sequence_between_includingOpenPalm() == -1)
+			if (handgenerator->_posesetgenerator.run_sequence_between26() == -1)
+			//if (handgenerator->_posesetgenerator.run_sequence_between52() == -1)
 				return false;
 		}
 		else if (_camtype.compare("glcamera_test") == 0){
@@ -210,6 +212,21 @@ public:
 		cam_color.copyTo(out);
 	}
 
+	void recordFramesTraining(int posname,cv::Mat img){
+		printf("[%d]recording frame..:%d\n", posname, _frame);
+
+		for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			cam_depth16.at<ushort>(j, i) = img.at<float>(j, i);
+
+		char filename[200];
+		sprintf(filename, "save/sequence/train/%d/depth-%07u.png",posname, _frame);
+
+		cv::imwrite(filename, cam_depth16);
+
+	}
+
+
 	void recordFrames(std::string opt){
 		printf("Record frame: %d \n",_frame);
 
@@ -279,10 +296,11 @@ public:
 	}
 	
 
+	PlayCamera* playcamera;
+
 private:
 
 	RealSenseCVWrapper* realcamera;
-	PlayCamera* playcamera;
 	HandGenerator* handgenerator;
 	GLRenderer* glcamera;
 	NYUCamera* nyucamera;

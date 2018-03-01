@@ -22,8 +22,9 @@ using namespace std;
 //adaptive:  METHOD2,  METHOD3
 
 //#define METHOD0 //fixed boundary
-//#define METHOD2 //adaptive boundary
+//#define METHOD3 //cnn term in cost function
 
+//#define METHOD2 //adaptive boundary
 //#define METHOD3 //cnn term in cost function
 
 
@@ -196,6 +197,7 @@ public:
 	
 	void run(cv::Mat cam_color,cv::Mat cam_depth,float* com_hand, std::string const& type){
 		
+		
 		cv::Mat cam_depth_track;
 		cv::resize(cam_depth, cam_depth_track, cv::Size(_glrenderer.width, _glrenderer.height), 0, 0, CV_INTER_NN);		
 		_costFunct.transferObservation2GPU(cam_depth_track);
@@ -204,7 +206,7 @@ public:
 		collisionNumber_cnn.setTo(0);
 
 #pragma region set pose_cnn / boundary_cnn 
-		if (type == "hybrid"){
+		if (type != "26D"){
 
 			//from manual cnn
 			/*
@@ -227,7 +229,7 @@ public:
 			_mmf->getLabel(&pose_cnn.at<float>(0, 0));
 
 			pose_cnn.at<float>(0, 0) += com_hand[0];
-			pose_cnn.at<float>(0, 1) -= com_hand[1];
+			pose_cnn.at<float>(0, 1) += com_hand[1];
 			pose_cnn.at<float>(0, 2) += com_hand[2];
 
 			//limit position
@@ -249,22 +251,19 @@ public:
 		setBoundary_track(); //check (around gbest_param_pre)
 		
 
-		if (type == "6D"){
-			initializePalm(0, particle_num, gbest_pre, boundary_track);
-		}
-		else if (type=="26D"){
+		if (type=="26D"){
 			//initializeFingers(0, 20, gbest_pre);
 			//initializePalm(20, 26, gbest_pre, boundary);
 			//initializeAll(26, particle_num, gbest_pre, boundary);
 			initializeAll(0, particle_num, gbest_pre, boundary_track);
-			calculateCost(0);
+			calculateCost(0,type);
 			calculatePbest();
 			calculateGbest(0, particle_num, gbest);
 		}
-		else if (type=="hybrid"){
+		else{
 			initializeAll(0, particle_num / 2, gbest_pre, boundary_track);
 			initializeAll(particle_num/2, particle_num, pose_cnn, boundary_cnn);
-			calculateCost(0);
+			calculateCost(0,type);
 			calculatePbest();
 			calculateGbest(0, particle_num / 2, gbest_track);
 			calculateGbest(particle_num / 2, particle_num, gbest_cnn);
@@ -306,24 +305,18 @@ public:
 			
 #pragma region calculate velocity and update particles.
 
-			if (type=="6D"){
-				calculateVelocity(0, particle_num, gbest, boundary_track);
-				updatePalm(0, particle_num, gbest, boundary_track);
-			}
-			else if (type=="26D"){
+			if (type=="26D"){
 				calculateVelocity(0, particle_num, gbest, boundary_track);
 				updateAll(0, particle_num, boundary_track,collisionNumber_track,"damping");
 			}
-			else if (type=="hybrid"){
-				
-#ifdef METHOD0
+			else if (type == "fixed"){
 				calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
 				updateAll(0, particle_num / 2, boundary_track, collisionNumber_track, "damping");
 
 				calculateVelocity(particle_num / 2, particle_num, gbest_cnn, boundary_cnn);
 				updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn, "damping");
-#else
-				
+			}
+			else if (type=="adaptive"){
 				if (g < 5){
 					calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
 					updateAll(0, particle_num / 2, boundary_track, collisionNumber_track,"damping");
@@ -339,17 +332,16 @@ public:
 					calculateVelocity(particle_num / 2, particle_num, gbest, boundary_cnn);
 					updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn,"damping");
 				}	
-#endif
 			}
 #pragma endregion
 			
 				
 #pragma region calculate cost / pbest / gbest	
 			
-			calculateCost(g);
+			calculateCost(g,type);
 			calculatePbest();
 
-			if (type == "hybrid"){
+			if (type != "26D"){
 				calculateGbest(0, particle_num / 2, gbest_track);
 				calculateGbest(particle_num / 2, particle_num, gbest_cnn);
 				calculateGbest(0, particle_num, gbest);
@@ -380,27 +372,28 @@ public:
 			}
 #endif
 
-#ifdef METHOD2
-			
-			if (type == "hybrid"){
-				if (g >= 5 && g % 5 == 0)
-				{
-					for (int j = 0; j < dimension; j++){
-						//0~particle_num/2.
-						{
-							float avg = calculateAverage(position, j, 0, particle_num / 2);
-							float stdev = calculateSTDEV(position, g, j, avg, 0, particle_num / 2);
+		if (type == "adaptive"){
+			if (g >= 5 && g % 5 == 0)
+			{
+				if (gbestIdx >= particle_num / 2){
+					for (int j = 0; j < dimension; j++)
+					{
+						float avg = calculateAverage(position, j, 0, particle_num / 2);
+						float stdev = calculateSTDEV(position, g, j, avg, 0, particle_num / 2);
 
-							//if (checkUpperBoundary(j, g, avg, stdev) == 1)
-							updateUpperBoundary(j, g, avg, stdev, boundary_track);
+						//if (checkUpperBoundary(j, g, avg, stdev) == 1)
+						updateUpperBoundary(j, g, avg, stdev, boundary_track);
 
-							//if (checkLowerBoundary(j, g, avg, stdev) == 1)
-							updateLowerBoundary(j, g, avg, stdev, boundary_track);
+						//if (checkLowerBoundary(j, g, avg, stdev) == 1)
+						updateLowerBoundary(j, g, avg, stdev, boundary_track);
 
-							limitBoundary(boundary_track);
-						}
-						//0~particle_num/2.
-						{
+						limitBoundary(boundary_track);
+					}
+				}
+				//0~particle_num/2.
+				else{
+					for (int j = 0; j < dimension; j++)
+					{
 						float avg = calculateAverage(position, j, particle_num / 2, particle_num);
 						float stdev = calculateSTDEV(position, g, j, avg, particle_num / 2, particle_num);
 
@@ -409,31 +402,11 @@ public:
 
 						limitBoundary(boundary_cnn);
 					}
-					}
-				}
+				}	
 			}
-			else{
-				if (g >= 5 && g % 5 == 0)
-				{
-					for (int j = 0; j < dimension; j++){
-						//0~particle_num/2.
-						{
-							float avg = calculateAverage(position, j, 0, particle_num );
-							float stdev = calculateSTDEV(position, g, j, avg, 0, particle_num);
+		}
+			
 
-							//if (checkUpperBoundary(j, g, avg, stdev) == 1)
-							updateUpperBoundary(j, g, avg, stdev, boundary_track);
-
-							//if (checkLowerBoundary(j, g, avg, stdev) == 1)
-							updateLowerBoundary(j, g, avg, stdev, boundary_track);
-
-							limitBoundary(boundary_track);
-						}
-					}
-				}
-
-			}
-#endif
 
 
 
@@ -442,8 +415,7 @@ public:
 #pragma region reinitialize finger
 			
 			if(g % 3 == 0){
-
-				if (type == "hybrid"){
+				if (type != "26D"){
 					reinitializeFingers(0, particle_num / 4, boundary_track);
 					reinitializeFingers(3 * particle_num / 4, particle_num, boundary_cnn);
 				}
@@ -509,7 +481,7 @@ public:
 		
 		//visualize final solution
 		//showDemo(cam_color,cam_depth);
-		showObModel("final",cam_color, cam_depth, &position.at<float>(0, 0),"nosave");
+		//showObModel("final",cam_color, cam_depth, &position.at<float>(0, 0),"nosave");
 		
 		
 		
@@ -924,35 +896,33 @@ public:
 		}
 	}
 
-	void calculateCost(int g){
-		
+	void calculateCost(int g, std::string const& type){
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		for (int px = 0; px < particle_numx; px++)
 		for (int py = 0; py < particle_numy; py++)
 		{
 
-			float* solp = &position.at<float>(px + py*particle_numx,0 );
+			float* solp = &position.at<float>(px + py*particle_numx, 0);
 			_renderer->renderTile(px, py, solp, "depth");
 		}
 		glFinish();
-		
+
 		//data term
 		_costFunct.calculateCost(cost);
-		
+
 		//cnn pose term
-#ifdef METHOD3
-		for (int i = 0; i < particle_num; i++)
-		{
-			float cost_pose = 0;
-			for (int j = 6; j < dimension; j++)
-				cost_pose += abs(pose_cnn.at<float>(0, j) - position.at<float>(i, j)) / (boundary_max[1][j] - boundary_max[0][j]);
-				
-			cost_pose /= (dimension - 6);
-			cost.at<float>(0, i) += cost_pose;
-		}
-#endif
-		
-		
+		if(type!="26D"){
+			for (int i = 0; i < particle_num; i++)
+			{
+				float cost_pose = 0;
+				for (int j = 6; j < dimension; j++)
+					cost_pose += abs(pose_cnn.at<float>(0, j) - position.at<float>(i, j)) / (boundary_max[1][j] - boundary_max[0][j]);
+
+				cost_pose /= (dimension - 6);
+				cost.at<float>(0, i) += cost_pose;
+			}
+		}	
 	}
 
 	
@@ -1682,7 +1652,7 @@ public:
 
 	}
 
-	void saveImage(cv::Mat cam_color, int frame){
+	void saveImage(cv::Mat cam_color,std::string testImageType,std::string trackingType, int frame){
 
 		float* solp = &position.at<float>(0, 0);
 
@@ -1706,11 +1676,21 @@ public:
 		cv::Mat fimg;
 		cv::addWeighted(cam_color, 0.5, falseColorsMap, 1.0, 0, fimg);
 		
-		char filename[200];
-		sprintf(filename, "save/sequence/uvrResult/result-%07u.png", frame);
-		cv::imwrite(filename, fimg);
+		
+		//char filename[200];
+		//sprintf(filename, "save/sequence/uvrResult/result-%07u.png", frame);
+		//cv::imwrite(filename, fimg);
+		
+
+		string data_path = "save/sequence/uvrResult/";
+		ostringstream stringstream;
+		stringstream << std::setw(7) << std::setfill('0') << frame;
+		cv::imwrite(data_path + testImageType + "/" + trackingType + "/result-" + stringstream.str() + ".png",fimg);
+		
+
+
 	}
-	void saveJoints(cv::Mat cam_color,int  frame){
+	void saveJoints(cv::Mat cam_color,string testimagetype,string trackingtype,int  frame){
 
 		//label (26D pose)
 		/*
@@ -1747,10 +1727,11 @@ public:
 			std::vector<int> jidx;
 			jidx.push_back(4); jidx.push_back(9); jidx.push_back(14); jidx.push_back(19); jidx.push_back(24);//
 
-			string fname = "save/sequence/uvr.csv";
+			string fname = "save/sequence/uvr_" + trackingtype +testimagetype+".csv";
 			static ofstream file1(fname);
 
-			//save joints	
+			//save fingertips
+			/*
 			for (int k = 0; k < jidx.size(); k++){
 				int i = jidx[k];
 
@@ -1764,6 +1745,24 @@ public:
 				else
 					file1 << x << "," << y << "," << z << ",";
 			}
+			*/
+
+			//save between fingertip and previous joint
+			for (int k = 0; k < jidx.size(); k++){
+				int i1 = jidx[k];
+				int i0 = i1 - 1;
+
+				float x = (jpos[3 * i0 + 0] + jpos[3 * i1 + 0])/2;
+				float y = (jpos[3 * i0 + 1] + jpos[3 * i1 + 1])/2;
+				float z = (jpos[3 * i0 + 2] + jpos[3 * i1 + 2])/2;
+
+				char str[100];
+				if (k == (jidx.size() - 1))
+					file1 << x << "," << y << "," << z << endl;
+				else
+					file1 << x << "," << y << "," << z << ",";
+			}
+
 			
 
 			//visualize joint as circle

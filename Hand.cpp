@@ -1055,16 +1055,19 @@ void Hand::SetJoint(int jn, int pc, float x, float y, float z)
 	float sy = 1.0;
 	float sz = 1.0;
 
-	//if (jn == 0)
-	//	sy = 0.7;
-	//if (jn == 3)
-	//	sy = 0.7;
-	//if (jn == 6)
-	//	sy = 0.7;
-	//if (jn == 9)
-	//	sy = 0.7;
-	//if (jn == 12)
-	//	sy = 0.7;
+	/*
+	if (jn == 0)
+		sy = 1.1;
+	if (jn == 3)
+		sy = 1.1;
+	if (jn == 6)
+		sy = 1.2;
+	if (jn == 9)
+		sy = 1.1;
+	if (jn == 12)
+		sy = 1.1;
+	*/
+
 
 	bone_data[BoneIndex].possible_positions[pc].impRot = Matrix4f::MakeRotationMatrix(x, y, z)*Matrix4f::MakeScalingMatrix(sx,sy,sz);//(1,1.08,1);
 
