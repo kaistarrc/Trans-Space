@@ -6,7 +6,10 @@ MMF::MMF(int w, int h){
 	height = h;
 
 	DATA_LEN = width*height*sizeof(float); //how to do this automatically?
-	DATA_LEN2 = 26;// 5 * 3 * 3;
+	//DATA_LEN2 = 5 * 3 * 3;
+	//DATA_LEN2 = 26;
+	DATA_LEN2 = 1;
+
 	_cnnimg = cv::Mat(height, width, CV_32FC1);
 
 	//char memoryname[1024];
@@ -85,7 +88,7 @@ MMF::~MMF(){
 
 void MMF::send2CNN(){
 
-	cvWaitKey(1); // to 1?
+	//cvWaitKey(1); // to 1?
 
 WaitForSingleObject(hEvent2, INFINITE);
 	for (int i = 0; i<width; i++)
@@ -108,6 +111,8 @@ WaitForSingleObject(hEvent3, INFINITE);//
 	for (int i = 0; i < DATA_LEN2; i++){
 		DL_result[i] = lpMapping_receive[i];
 	}
+
+	//printf("dlresult:%f\n", DL_result[0]);
 
 SetEvent(hEvent4);
 	

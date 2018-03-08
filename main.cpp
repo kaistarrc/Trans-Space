@@ -51,36 +51,38 @@ void* sendImage_learning(void* data)
 }
 
 /*/
-*  for learning data
+*  save for learning data
 *
 **/
 //#define SAVE_TRACKBAR_POSTURE_SYNTHETIC    //o
-//#define SAVE_TRAININGSET_SYNTHETIC          //o
+//#define SAVE_TRAININGSET_SYNTHETIC         //o
 //#define SAVE_TRAININGSET_REALHAND
 
-
 /*/
-*  test trained network
+*  test CNN
 *
 **/
 //#define TEST_NETWORK_ON_TRAININGSET   //o
 //#define TEST_NETWORK_ON_REALTIME      //o
-
+//#define TEST_NETWORK_ON_TRACKBAR
 
 /*/
 *  save and test on sequence data
 *
 **/
-
-//#define SAVE_SYNTHETIC_SEQUENCE_COMPARISON  //o
-#define TEST_ON_SEQUENCE                   //o
+#define SAVE_SYNTHETIC_SEQUENCE_COMPARISON  //o
+//#define SAVE_REALTIME
+//#define TEST_ON_SEQUENCE     //o
 
 /*/
-*  real data test
+*  test algorithm based on real camera.
 *
 **/
-
 //#define TEST_REALTIME                      //o
+
+
+
+
 
 
 
@@ -92,7 +94,7 @@ void main(int argc, char** argv)
 
 	//--model size---
 	//good except for pinky.
-	float sx_palm = 8; float sy_palm = 8; float sz_palm = 8; //x :가로  , y: 두께,   z: 세로
+	float sx_palm = 8; float sy_palm = 8; float sz_palm = 8; 
 	float sx_finger=1, sy_finger=1, sz_finger=1;
 
 
@@ -103,7 +105,7 @@ void main(int argc, char** argv)
 	*   \"glcamera_test"
 	**/
 	string cameratype = "playcamera";
-	string testImageType = "vga2";
+	string testImageType = "00";
 
 	/**
 	*   \model type
@@ -158,9 +160,10 @@ void main(int argc, char** argv)
 	cameratype = "glcamera_cnn_dataset";
 	saveimage_enable = true;
 	recordFrameOpt = "uvr";
-	savegroundtruth_enable = true;
+	//savegroundtruth_enable = true;
 	//showgroundtruth_enable = true;
 	upframe_enable = true;
+
 
 	setup_model_path_low = "data/hand_20180226_1.dae";
 	setup_modelTexture_path = "data/hand_2.bmp";
@@ -187,13 +190,31 @@ void main(int argc, char** argv)
 	segmenthand_enable = true;
 #endif
 
+#ifdef TEST_NETWORK_ON_TRACKBAR
+	cameratype = "glcamera_gui";
+	sendCNN_enable = true;
+	showcnnresult_enable = true;
+	segmenthand_enable = true;
+#endif
+
+#ifdef SAVE_REALTIME
+	cameratype="realcamera";
+
+	saveimage_enable = true;
+	recordFrameOpt = "all";
+	upframe_enable = true;
+
+
+
+#endif
+
+
 
 #ifdef TEST_REALTIME
 
 	cameratype = "realcamera";
-
-	trackingtype = "adaptive";
-	if (trackingtype == "adaptive")
+	trackingtype = "2";
+	if (trackingtype != "0")
 		sendCNN_enable=true;
 	
 	runPSO_enable = true;
@@ -213,29 +234,40 @@ void main(int argc, char** argv)
 	upframe_enable = true;
 	showgroundtruth_enable = true;
 
+
+	num_between = 100;//2,5,10
+
+
 	setup_model_path_low = "data/wristHand_20180226_2.dae";
 	setup_modelTexture_path = "data/wristHand_1.bmp";
 
-	num_between = 2;//2,5,10
+	//sx_palm = 9; sy_palm = 9; sz_palm = 9;//x :가로  , y: 두께,   z: 세로
 	
 #endif
 
 #ifdef TEST_ON_SEQUENCE
-	cameratype = "playcamera";
-	//testImageType = "vga2"; //"vga2","vga5","vga10"
-	//trackingtype = "fixed"; //"26D", "fixed", "adaptive"
-	testImageType = argv[2];
-	trackingtype = argv[3];
-	
-	//char* aa = "ho";
-	//string ho = aa;
-	//std::cout << ho;
+	//cameratype = "playcamera";
+	//testImageType = "vga_2"; //"vga_2","vga_5","vga_10"
+	//trackingtype = "1"; //"0","1","2',"3","4"
+	//segmenthand_enable = true;
 
-	if (trackingtype != "26D")
+	cameratype = "playcamera";
+	testImageType = argv[2];//argv[2];
+	trackingtype = argv[3];// "0","1","2","3","4"
+	segmenthand_enable = true;
+
+	//cameratype = "glcamera_sequence";
+	//num_between = 2;
+	//trackingtype = "4";
+	
+	
+	
+	
+	if (trackingtype != "0")
 		sendCNN_enable=true;
 	
 	runPSO_enable = true;
-	segmenthand_enable = true;
+	
 	savepsoresult_enable = true;
 	upframe_enable = true;
 
@@ -243,9 +275,6 @@ void main(int argc, char** argv)
 	setup_modelTexture_path = "data/hand_2.bmp";
 
 	//sx_palm =9 ; sy_palm = 9; sz_palm = 9; //x :가로  , y: 두께,   z: 세로
-	
-
-
 	
 #endif
 
@@ -292,10 +321,6 @@ void main(int argc, char** argv)
 	cx = 320.0; cy = 240.0;
 	
 
-
-
-
-	
 #pragma endregion
 
 #pragma region init class	
@@ -348,9 +373,13 @@ void main(int argc, char** argv)
 		//cv::normalize(cam_depth, cam_depth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
 		//cv::imshow("cam_depth8u", cam_depth8u);
 
+		//cv::Mat cam_rgb;
+		//camera.realcamera->getColorBuffer(cam_rgb);
+		//cv::imshow("cam_rgb",cam_rgb);
+
 		cv::Mat cam_color;
 		camera.getMappedColorBuffer(cam_color);
-		cv::imshow("cam_color", cam_color);
+		//cv::imshow("cam_rgb2depth", cam_color);
 		//cv::moveWindow("cam_color", 640 * 2, 0);
 		//glutSwapBuffers();
 
@@ -362,6 +391,7 @@ void main(int argc, char** argv)
 #pragma region preprocessing
 		if (segmenthand_enable==true)
 			preproc.segmentHandFromBand(cam_color, cam_depth);
+		//cv::imshow("segdepth", cam_depth);
 		preproc.getComHandxyz(cam_depth,com_hand);
 
 #pragma endregion
@@ -436,6 +466,7 @@ void main(int argc, char** argv)
 			*/
 
 			//26D
+			/*
 			float cnnresult[26];
 			mmf.receiveData();
 			mmf.getLabel(cnnresult);
@@ -446,11 +477,6 @@ void main(int argc, char** argv)
 				solp[i] = cnnresult[i];
 			solp[0] += com_hand[0]; solp[1] += com_hand[1];	solp[2] += com_hand[2];
 
-			//printf("t: %.2f %.2f %.2f\n", solp[0], solp[1], solp[2]);
-			//printf("r: %.2f %.2f %.2f\n", solp[3], solp[4], solp[5]);
-			//for (int i = 0; i < 5; i++)
-			//	printf("f[%d]: %.2f %.2f %.2f %.2f\n",i,solp[6 + 4 * i], solp[7 + 4 * i], solp[8 + 4 * i], solp[9 + 4 * i]);
-
 			handgenerator.renderOrig(solp, "color");
 
 			cv::Mat model_color;
@@ -460,6 +486,42 @@ void main(int argc, char** argv)
 			cv::Mat fimg;
 			cv::addWeighted(cam_color, 0.3, model_color, 0.9, 0, fimg);
 			cv::imshow("cnnresult2rgb", fimg);
+
+			*/
+
+			float cnnresult;
+			mmf.receiveData();
+			mmf.getLabel(&cnnresult);
+			std::cout << cnnresult << endl;
+
+			//handgenerator._trackbar.load((int)cnnresult);
+			//handgenerator._trackbar.run();
+
+			float solp[26];
+			for (int i = 0; i < 3; i++)
+				solp[i] = com_hand[i];
+			solp[1] = -com_hand[1];
+			for (int i = 3; i < 6; i++)
+				solp[i] = handgenerator._trackbar.wval[i];
+
+			for (int i = 0; i < 5; i++){
+				solp[6 + 4 * i + 0] = handgenerator._trackbar.fval[3 * i + 0][0];
+				solp[6 + 4 * i + 1] = handgenerator._trackbar.fval[3 * i + 0][2];
+				solp[6 + 4 * i + 2] = handgenerator._trackbar.fval[3 * i + 1][0];
+				solp[6 + 4 * i + 3] = handgenerator._trackbar.fval[3 * i + 2][0];
+			}
+
+		
+			handgenerator.renderOrig(solp, "color");
+
+			cv::Mat model_color;
+			glrenderer.getOrigImage(model_color, "color");
+			cv::imshow("cnnresult", model_color);
+
+			cv::Mat fimg;
+			cv::addWeighted(cam_color, 0.3, model_color, 0.9, 0, fimg);
+			cv::imshow("cnnresult2rgb", fimg);
+			
 		}
 
 
@@ -505,8 +567,8 @@ void main(int argc, char** argv)
 				camera._frame = 0;
 				upframe_enable = false;
 				postureName += 1;
-
 			}
+
 		}
 
 		if (savegroundtruth_enable == true){
@@ -637,21 +699,11 @@ void main(int argc, char** argv)
 				exit(1);
 		}
 		*/
-
 		if (cv::waitKey(1) == 'q')
-			break;
-
-
-
-	
+			exit(1);
 		
 		
-		//if (cv::waitKey(1) == 'a'){
-		//	int cid;
-		//	printf("frame id:\n");
-		//	std::cin >> cid;
-		//	camera._frame = cid;
-		//}
+		
 
 
 		if (upframe_enable == true)

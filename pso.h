@@ -34,12 +34,20 @@ using namespace std;
 
 #pragma comment(lib,"opencv_world310.lib")
 
+
+/*
 float bound_stdev[26] = { 10, 10, 10, 10, 10, 10,
 						10, 5, 10, 10,
 						10, 5, 10, 10,
 						10, 5, 10, 10,
 						10, 5, 10, 10,
 						10, 5, 10, 10 };
+*/
+float bound_stdev[26] = { 5 };
+
+float bound_dvar_max = 0.883; //0.883~0.969
+float bound_dvar_min = 0.00001;
+
 
 
 namespace {
@@ -113,8 +121,6 @@ public:
 			boundary_const.at<float>(1, j) = boundary_max[1][j];
 		}
 
-		bound_dvar_max=0.883;
-		bound_dvar_min=0.00001;
 		
 
 		//debugging--
@@ -197,7 +203,6 @@ public:
 	
 	void run(cv::Mat cam_color,cv::Mat cam_depth,float* com_hand, std::string const& type){
 		
-		
 		cv::Mat cam_depth_track;
 		cv::resize(cam_depth, cam_depth_track, cv::Size(_glrenderer.width, _glrenderer.height), 0, 0, CV_INTER_NN);		
 		_costFunct.transferObservation2GPU(cam_depth_track);
@@ -206,7 +211,7 @@ public:
 		collisionNumber_cnn.setTo(0);
 
 #pragma region set pose_cnn / boundary_cnn 
-		if (type != "26D"){
+		if (type != "0"){
 
 			//from manual cnn
 			/*
@@ -223,15 +228,27 @@ public:
 			}
 			*/
 
-			//from trained cnn.
-
+			//from trained cnn(26D).
+			/*
 			_mmf->receiveData();
 			_mmf->getLabel(&pose_cnn.at<float>(0, 0));
 
 			pose_cnn.at<float>(0, 0) += com_hand[0];
-			pose_cnn.at<float>(0, 1) += com_hand[1];
+			pose_cnn.at<float>(0, 1) -= com_hand[1];
 			pose_cnn.at<float>(0, 2) += com_hand[2];
+			*/
 
+			//from trained cnn(1D)
+			float cnnresult;
+			_mmf->receiveData();
+			_mmf->getLabel(&cnnresult);
+			_renderer->_trackbar.loadRealPose(cnnresult,&pose_cnn.at<float>(0, 0));
+
+			for (int i = 0; i < 3; i++)
+				pose_cnn.at<float>(0, i) = com_hand[i];
+			pose_cnn.at<float>(0,1) = -com_hand[1];
+
+			
 			//limit position
 			limitPosition(pose_cnn, boundary_const);
 			//for (int j = 0; j < dimension;j++)
@@ -251,7 +268,7 @@ public:
 		setBoundary_track(); //check (around gbest_param_pre)
 		
 
-		if (type=="26D"){
+		if (type=="0"){
 			//initializeFingers(0, 20, gbest_pre);
 			//initializePalm(20, 26, gbest_pre, boundary);
 			//initializeAll(26, particle_num, gbest_pre, boundary);
@@ -305,19 +322,20 @@ public:
 			
 #pragma region calculate velocity and update particles.
 
-			if (type=="26D"){
+			if (type=="0"){
 				calculateVelocity(0, particle_num, gbest, boundary_track);
 				updateAll(0, particle_num, boundary_track,collisionNumber_track,"damping");
 			}
-			else if (type == "fixed"){
+			else if (type == "1" || type=="3"){
 				calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
 				updateAll(0, particle_num / 2, boundary_track, collisionNumber_track, "damping");
 
 				calculateVelocity(particle_num / 2, particle_num, gbest_cnn, boundary_cnn);
 				updateAll(particle_num / 2, particle_num, boundary_cnn, collisionNumber_cnn, "damping");
 			}
-			else if (type=="adaptive"){
-				if (g < 5){
+			else if (type=="2" || type=="4"){
+	
+				if (g <= 5){
 					calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
 					updateAll(0, particle_num / 2, boundary_track, collisionNumber_track,"damping");
 
@@ -341,7 +359,7 @@ public:
 			calculateCost(g,type);
 			calculatePbest();
 
-			if (type != "26D"){
+			if (type != "0"){
 				calculateGbest(0, particle_num / 2, gbest_track);
 				calculateGbest(particle_num / 2, particle_num, gbest_cnn);
 				calculateGbest(0, particle_num, gbest);
@@ -354,68 +372,100 @@ public:
 			
 #pragma region change boundary
 	
-#ifdef METHOD1
-			float b_alpha0 = 0.5;
-			float b_alpha1 = 0.5;
-
-			if (g >= 5 && g % 5 == 0)
+		if (type == "2" || type=="4"){
+			//if (g >= 5 && g % 5 == 0)//if (g >= 5 && g % 5 == 0)
+			if (g>=5)
 			{
-				for(int j=0;j<dimension;j++){
+				float a=bound_dvar_min + g*(bound_dvar_max - bound_dvar_min) / max_generation;
 
-					updateBoundary2(j, collisionNumber_track, boundary_track, b_alpha0);
-					updateBoundary2(j, collisionNumber_cnn, boundary_cnn, b_alpha1);
-
-					limitBoundary(boundary_track);
-					limitBoundary(boundary_cnn);
-				}
-
-			}
-#endif
-
-		if (type == "adaptive"){
-			if (g >= 5 && g % 5 == 0)
-			{
 				if (gbestIdx >= particle_num / 2){
 					for (int j = 0; j < dimension; j++)
 					{
 						float avg = calculateAverage(position, j, 0, particle_num / 2);
-						float stdev = calculateSTDEV(position, g, j, avg, 0, particle_num / 2);
+						float stdev = calculateSTDEV(position,j, avg, 0, particle_num / 2);
+						float best = gbest.at<float>(0, j);
 
-						//if (checkUpperBoundary(j, g, avg, stdev) == 1)
-						updateUpperBoundary(j, g, avg, stdev, boundary_track);
+						if (stdev < bound_stdev[j])
+							stdev = bound_stdev[j];
+						
+						boundary_track.at<float>(0, j) = avg - sqrt(-2 * stdev*stdev*log(a));
+						boundary_track.at<float>(1, j) = avg + sqrt(-2 * stdev*stdev*log(a));
 
-						//if (checkLowerBoundary(j, g, avg, stdev) == 1)
-						updateLowerBoundary(j, g, avg, stdev, boundary_track);
+						if (boundary_track.at<float>(1, j)< best)
+							updateUpperBoundary(j, a, best, avg, stdev, boundary_track);
+						if (boundary_track.at<float>(0, j) > best)
+							updateLowerBoundary(j, a, best, avg, stdev, boundary_track);
 
-						limitBoundary(boundary_track);
+						limitBoundary(j,a,avg,boundary_track);
+
+						//if (boundary_track.at<float>(0, j) <= boundary_max[0][j])
+						//	printf("%f %f\n", boundary_track.at<float>(0, j), boundary_max[0][j]);
+						//if (boundary_track.at<float>(1, j) >= boundary_max[1][j])
+						//	printf("%f %f\n", boundary_track.at<float>(1, j), boundary_max[1][j]);
 					}
+					
+					/*
+					initializeAll(0, particle_num / 2, gbest_track, boundary_track);
+
+					//
+					calculateCost(0, type);
+					calculatePbest();
+					calculateGbest(0, particle_num / 2, gbest_track);
+					calculateGbest(particle_num / 2, particle_num, gbest_cnn);
+					calculateGbest(0, particle_num, gbest);
+					*/
+					
 				}
 				//0~particle_num/2.
 				else{
 					for (int j = 0; j < dimension; j++)
 					{
 						float avg = calculateAverage(position, j, particle_num / 2, particle_num);
-						float stdev = calculateSTDEV(position, g, j, avg, particle_num / 2, particle_num);
+						float stdev = calculateSTDEV(position,j, avg, particle_num / 2, particle_num);
+						float best = gbest.at<float>(0, j);
 
-						updateUpperBoundary(j, g, avg, stdev, boundary_cnn);
-						updateLowerBoundary(j, g, avg, stdev, boundary_cnn);
+						if (stdev < bound_stdev[j])
+							stdev = bound_stdev[j];
 
-						limitBoundary(boundary_cnn);
+						boundary_cnn.at<float>(0, j) = avg - sqrt(-2 * stdev*stdev*log(a));
+						boundary_cnn.at<float>(1, j) = avg + sqrt(-2 * stdev*stdev*log(a));
+
+						if (boundary_cnn.at<float>(1, j) < best)
+							updateUpperBoundary(j, a, best, avg, stdev, boundary_cnn);
+						if (boundary_cnn.at<float>(0, j) > best)
+							updateLowerBoundary(j, a, best, avg, stdev, boundary_cnn);
+
+						limitBoundary(j,a,avg,boundary_cnn);
+
+						//if (boundary_cnn.at<float>(0, j) <= boundary_max[0][j])
+						//	printf("%f %f\n", boundary_cnn.at<float>(0, j), boundary_max[0][j]);
+						//if (boundary_cnn.at<float>(1, j) >= boundary_max[1][j])
+						//	printf("%f %f\n", boundary_cnn.at<float>(1, j), boundary_max[1][j]);
+
 					}
+
+
+					/*
+					initializeAll(particle_num / 2, particle_num, gbest_cnn, boundary_cnn);
+
+					calculateCost(0, type);
+					calculatePbest();
+					calculateGbest(0, particle_num / 2, gbest_track);
+					calculateGbest(particle_num / 2, particle_num, gbest_cnn);
+					calculateGbest(0, particle_num, gbest);
+					*/
+					
 				}	
+				
 			}
 		}
 			
-
-
-
-
 #pragma endregion
 
 #pragma region reinitialize finger
-			
+		
 			if(g % 3 == 0){
-				if (type != "26D"){
+				if (type != "0"){
 					reinitializeFingers(0, particle_num / 4, boundary_track);
 					reinitializeFingers(3 * particle_num / 4, particle_num, boundary_cnn);
 				}
@@ -423,10 +473,7 @@ public:
 					reinitializeFingers(0, particle_num / 2, boundary_track);
 				}
 			}
-			
-			
-			
-
+		
 #pragma endregion
 
 			//if (g==max_generation-1)
@@ -436,7 +483,7 @@ public:
 
 			cv::Mat ddimg;
 			ddimg = getObModelParticles();
-			showObModelParticles("during", "nosave", g);
+			showObModelParticles("during", "save", g);
 			cv::moveWindow("during", 2000, 0);
 
 			cv::Mat bbt = boundary_track;
@@ -452,9 +499,9 @@ public:
 			
 			/*
 			while (1){
-				if (cv::waitKey(100) == '0')
+				if (cv::waitKey(1) == '0')
 					break;
-				if (cv::waitKey(100) == 'q')
+				if (cv::waitKey(1) == 'q')
 					exit(1);
 			}
 			*/
@@ -481,11 +528,9 @@ public:
 		
 		//visualize final solution
 		//showDemo(cam_color,cam_depth);
-		//showObModel("final",cam_color, cam_depth, &position.at<float>(0, 0),"nosave");
+		showObModel("final",cam_color, cam_depth, &position.at<float>(0, 0),"nosave");
 		
 		
-		
-
 		//line up
 		//cv::moveWindow("cnn", 0, 0);
 		//cv::moveWindow("cnn_dif", 640, 0);
@@ -493,34 +538,44 @@ public:
 		//cv::moveWindow("final_dif", 640, 480);
 		//cv::moveWindow("initial", 640 * 3, 0);
 
+		//showResult(cam_color, cam_depth);
+	}
+
+	void showResult(cv::Mat cam_color,cv::Mat cam_depth){
+		showObModel("final", cam_color, cam_depth, &position.at<float>(0, 0), "nosave");
 	}
 
 	void setBoundary_track(){
 
+		float bt = 10;//10
+		float br = 10; //10
+		float bfx = 20; //30
+		float bfy = 10; //10
+
 		for (int j = 0; j < dimension; j++){
 
 			if (j < 3){
-				boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 10;  //palm
-				boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 10;
+				boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - bt;  //10
+				boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + bt;  //10
 			}
 			else if (j >= 3 && j < fingerStartIdx){
-				boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 10;  //palm
-				boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 10;
+				boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - br;  //10
+				boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + br;  //10
 			}
 			else if (j >= fingerStartIdx){
 				if ((j - fingerStartIdx) % 4 == 1){
 					//boundary_track.at<float>(0, j) = boundary_max[0][j];  
 					//boundary_track.at<float>(1, j) = boundary_max[1][j]; 
 
-					boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 5;
-					boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 5;
+					boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - bfy; //5
+					boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + bfy; //5
 				}
 				else{
 					//boundary_track.at<float>(0, j) = boundary_max[0][j];   
 					//boundary_track.at<float>(1, j) = boundary_max[1][j];  
 
-					boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - 20;
-					boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + 20;
+					boundary_track.at<float>(0, j) = gbest_pre.at<float>(0, j) - bfx; //20
+					boundary_track.at<float>(1, j) = gbest_pre.at<float>(0, j) + bfx; //20
 				}
 			}
 
@@ -549,26 +604,31 @@ public:
 
 	void setBoundary_cnn(){
 
+		float bt = 30;//30
+		float br = 30; //30
+		float bfx = 30; //30
+		float bfy =10; //10
+
 		for (int j = 0; j < dimension; j++){
-			if (j < fingerStartIdx){	
-				boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 10;  //palm
-				boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 10;
+			if (j < 3){	
+				boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - bt; //10
+				boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + bt; //10
+			}
+			else if (j>=3 && j < fingerStartIdx){
+				boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - br; //10
+				boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + br; //10
 			}
 			else if (j >= fingerStartIdx){
 				if ((j - fingerStartIdx) % 4 == 1){
-					//boundary_cnn.at<float>(0, j) = boundary_max[0][j];
-					//boundary_cnn.at<float>(1, j) = boundary_max[1][j];
 
-					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 5;
-					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 5;
+					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - bfy; //5
+					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + bfy; //5
 
 				}
 				else{
-					//boundary_cnn.at<float>(0, j) = boundary_max[0][j];
-					//boundary_cnn.at<float>(1, j) = boundary_max[1][j];
 
-					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - 20;
-					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + 20;
+					boundary_cnn.at<float>(0, j) = pose_cnn.at<float>(0, j) - bfx; //20
+					boundary_cnn.at<float>(1, j) = pose_cnn.at<float>(0, j) + bfx; //20
 				}
 			}
 
@@ -912,15 +972,16 @@ public:
 		_costFunct.calculateCost(cost);
 
 		//cnn pose term
-		if(type!="26D"){
+		if(type=="3" || type=="4"){
 			for (int i = 0; i < particle_num; i++)
 			{
 				float cost_pose = 0;
-				for (int j = 6; j < dimension; j++)
+				for (int j = 3; j < dimension; j++){
+					//if ((j-6)%4!=1)
 					cost_pose += abs(pose_cnn.at<float>(0, j) - position.at<float>(i, j)) / (boundary_max[1][j] - boundary_max[0][j]);
-
-				cost_pose /= (dimension - 6);
-				cost.at<float>(0, i) += cost_pose;
+				}
+				cost_pose /= (float)(dimension - 3);
+				cost.at<float>(0, i) += 0.5*cost_pose;  //0.3*cost_pose
 			}
 		}	
 	}
@@ -979,10 +1040,25 @@ public:
 
 		cv::Mat falseColorsMap;
 		applyColorMap(adjMap, falseColorsMap, 2);
-		cv::imshow("result", falseColorsMap);
+		cv::imshow(wname+"_model", falseColorsMap);
+
+		for (int i = 0; i < falseColorsMap.size().width;i++)
+		for (int j = 0; j < falseColorsMap.size().height; j++)
+		{
+			float b = falseColorsMap.at<uchar>(j, 3 * i + 0);
+			float g = falseColorsMap.at<uchar>(j, 3 * i + 1);
+			float r = falseColorsMap.at<uchar>(j, 3 * i + 2);
+
+			if (b>=125 && g==0 && r==0){
+				falseColorsMap.at<uchar>(j, 3 * i + 0) = 0;
+				falseColorsMap.at<uchar>(j, 3 * i + 1) = 0;
+				falseColorsMap.at<uchar>(j, 3 * i + 2) = 0;
+			}
+
+		}
 
 		cv::Mat fimg;
-		cv::addWeighted(cam_color, 0.5, falseColorsMap, 1.0, 0, fimg);
+		cv::addWeighted(cam_color, 1.0, falseColorsMap, 1.0, 0, fimg);
 		cv::imshow(wname, fimg);
 
 
@@ -1151,7 +1227,7 @@ public:
 
 	
 			sprintf(text_c, "%.3f", cost.at<float>(0, i + particle_numx*j));
-			cv::putText(om_3c, text_c, cvPoint(w_one*i + 20, h_one*j + 30), 1, 2, cv::Scalar(255, 255, 0));
+			//cv::putText(om_3c, text_c, cvPoint(w_one*i + 20, h_one*j + 30), 1, 2, cv::Scalar(255, 255, 0));
 
 			//sprintf(text_c, "l:%.4f", weight[m].at<float>(0, i + particle_numx*j));
 			//cv::putText(om_3c, text_c, cvPoint(w_one*i + 20, h_one*j + 30), 1, 1, cv::Scalar(255, 255, 0));
@@ -1226,8 +1302,8 @@ public:
 		return avg;
 	}
 
-	float calculateSTDEV(cv::Mat in, int g,int jid, int avg, int ps, int pe){
-		/*
+	float calculateSTDEV(cv::Mat in,int jid, int avg, int ps, int pe){
+		
 		float s = 0;
 		for (int i = ps; i < pe; i++){
 			float p = in.at<float>(i, jid);
@@ -1236,80 +1312,47 @@ public:
 		s /= (pe - ps);
 
 		float stdev = sqrt(s - avg*avg);
-		*/
-		float best = gbest.at<float>(0, jid);
-		float a = bound_dvar_min + g*(bound_dvar_max - bound_dvar_min) / max_generation;
-
-		float stdev = sqrt(-(best - avg)*(best - avg) / (2 * log(a)));
+		
+		//float best = gbest.at<float>(0, jid);
+		//float a = bound_dvar_min + g*(bound_dvar_max - bound_dvar_min) / max_generation;
+		//float stdev = sqrt(-(best - avg)*(best - avg) / (2 * log(a)));
 
 		return stdev;
 	}
 
-	int checkUpperBoundary(int jid,int g,float avg,float stdev)
-	{
-		float best = gbest.at<float>(0, jid);
-		//float a = exp(-(best - avg)*(best - avg) / (2*stdev*stdev));
-		float a = bound_dvar_min + g*(bound_dvar_max - bound_dvar_min) / max_generation;
-
-		if (avg + sqrt(-2 * stdev*stdev*log(a)) < best)
-			return 1;
-
-		return 0;
-	}
-
 	//modified updateBoundary (according to gbest)
-	void updateUpperBoundary(int jid,int g,float avg,float stdev,cv::Mat& bmat)
+	void updateUpperBoundary(int jid,float a,float best,float avg,float stdev,cv::Mat& bmat)
 	{	
-		float best = gbest.at<float>(0, jid);
-
-		float a = bound_dvar_min + g*(bound_dvar_max - bound_dvar_min) / max_generation;
 		float newstdev = sqrt(-(best - avg)*(best - avg) / (2 * log(a)));
-		//printf("(upper)newstdev:%f\n", newstdev);
-
-		if (newstdev < bound_stdev[jid])
-			newstdev = bound_stdev[jid];
-		
+		//printf("(new up)[%d]:%f->%f \n", jid, stdev,newstdev);
 
 		//new boundary
 		bmat.at<float>(1,jid) = avg + sqrt(-2 * newstdev*newstdev*log(a));
 	}
 
-	int checkLowerBoundary(int jid, int g, float avg, float stdev)
+	void updateLowerBoundary(int jid, float a, float best, float avg, float stdev, cv::Mat& bmat)
 	{
-		float best = gbest.at<float>(0, jid);
-		//float a = exp(-(best - avg)*(best - avg) / (2 * stdev*stdev));
-		float a = bound_dvar_min + g*(bound_dvar_max - bound_dvar_min) / max_generation;
-
-	
-		if (best < avg - sqrt(-2 * stdev*stdev*log(a)))
-			return 1;
-
-		return 0;
-	}
-
-	void updateLowerBoundary(int jid,int g, float avg, float stdev, cv::Mat& bmat)
-	{
-		float best = gbest.at<float>(0, jid);
-
-		float a = bound_dvar_min + g*(bound_dvar_max - bound_dvar_min) / max_generation;
 		float newstdev = sqrt(-(best - avg)*(best - avg) / (2 * log(a)));
-		//printf("(lower)newstdev:%f\n", newstdev);
+		//printf("(new lower)[%d]:%f->%f \n", jid, stdev,newstdev);
 
-		if (newstdev < bound_stdev[jid])
-			newstdev = bound_stdev[jid];
-		
 		//new boundary
 		bmat.at<float>(0, jid) = avg - sqrt(-2 * newstdev*newstdev*log(a));
 	}
 
-	void limitBoundary(cv::Mat& b){
-		for (int j = 0; j < dimension; j++){
-			if (b.at<float>(0, j) < boundary_max[0][j])
-				b.at<float>(0, j) = boundary_max[0][j];
+	
+	void limitBoundary(int jid,float a,float avg,cv::Mat& b){
 
-			if (b.at<float>(1, j) > boundary_max[1][j])
-				b.at<float>(1, j) = boundary_max[1][j];
-		}
+
+			if (b.at<float>(0, jid) < boundary_max[0][jid]){
+				float bl = boundary_max[0][jid];
+				b.at<float>(0,jid)= avg - sqrt(-(bl - avg)*(bl - avg) / (2 * log(a)));
+			}
+
+			if (b.at<float>(1, jid) > boundary_max[1][jid]){
+				float bu = boundary_max[1][jid];
+				b.at<float>(1, jid) = avg + sqrt(-(bu - avg)*(bu - avg) / (2 * log(a)));
+			}
+
 	}
 
 	// original updateBoundary (change specific dimension)
@@ -1727,7 +1770,7 @@ public:
 			std::vector<int> jidx;
 			jidx.push_back(4); jidx.push_back(9); jidx.push_back(14); jidx.push_back(19); jidx.push_back(24);//
 
-			string fname = "save/sequence/uvr_" + trackingtype +testimagetype+".csv";
+			string fname = "save/sequence/uvr_" + trackingtype + "_" + testimagetype + ".csv";
 			static ofstream file1(fname);
 
 			//save fingertips
@@ -1859,8 +1902,6 @@ public:
 	int bound_T1;
 	int bound_T2;
 
-	float bound_dvar_max;
-	float bound_dvar_min;
 	
 
 	int gbestIdx;

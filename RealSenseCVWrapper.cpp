@@ -130,9 +130,11 @@ void RealSenseCVWrapper::getDepthBuffer()
 	for (int i = 0; i < dinfo.width; i++)
 	for (int j = 0; j < dinfo.height; j++)
 	{
-		if (depthBuffer.at<float>(j, i)>500)
+		if (depthBuffer.at<float>(j, i)>400)
 			depthBuffer.at<float>(j, i) = 0;
 	}
+
+	//cv::imshow("segimg", depthBuffer);
 
 
 

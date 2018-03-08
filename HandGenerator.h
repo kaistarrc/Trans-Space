@@ -119,6 +119,7 @@ class HandGenerator{
 				cv::moveWindow("wrist", 640 * 3, 550);
 				cv::moveWindow("finger", 640 * 3+400, 550);
 
+				cv::destroyAllWindows();
 			
 				for (int j = 0; j < 6; j++){
 					float bu = boundary_max[1][j];
@@ -149,27 +150,6 @@ class HandGenerator{
 					fval[3 * i + 2][0] = bl3 + (fval_tb[3 * i + 2][0] / bar_range)*l3;
 				}
 
-
-				//fval[3 * 4 + 0][1] = -100+(fval_tb[3 * 4 + 0][1]/bar_range)*200;
-
-				//for (int i = 0; i < 5; i++){
-				//	
-				//	if (i == 0)
-				//		fval_tb[3 * i + 0][2] = bar_range / 2;
-				//	else
-				//		fval_tb[3 * i + 0][1] = bar_range / 2;
-
-				//	fval[3 * i + 0][1] = -50 + (fval_tb[3 * i + 0][1] / bar_range) * 100;
-				//}
-
-				//printf
-				//for (int i = 0; i < 5; i++)
-				//	printf("fval[%d]=%f\n", i,fval[3 * i][2]);
-				//printf("fval0[x]=%f\n",  fval[0][0]);
-				//printf("fval0[y]=%f\n",  fval[0][1]);
-				//printf("fval0[z]=%f\n", fval[0][2]);
-				//printf("fval1[x]=%f\n", fval[1][0]);
-
 				/*
 				wval[0] = -100 + (wval_tb[0] / bar_range) * 200.0;
 				wval[1] = -100 + (wval_tb[1] / bar_range) * 200.0;
@@ -182,6 +162,51 @@ class HandGenerator{
 				for (int j = 0; j < 3; j++)
 					fval[i][j] = -180 + (fval_tb[i][j] / bar_range) * 360.0;
 				*/
+
+			}
+
+			void saveRealPose(int cid){
+				char filename[100];
+				char str[100];
+				sprintf(filename, "save/realPose/handPose%d.txt", cid);
+
+				FILE* fp;
+				fp = fopen(filename, "w");
+
+				for (int i = 0; i < 6; i++){
+					sprintf(str, "%f\n", wval[i]);
+					fputs(str, fp);
+				}
+				for (int i = 0; i < 5; i++)
+				{
+					sprintf(str, "%f\n", fval[3 * i + 0][0]);
+					fputs(str, fp);
+					sprintf(str, "%f\n", fval[3 * i + 0][2]);
+					fputs(str, fp);
+					sprintf(str, "%f\n", fval[3 * i + 1][0]);
+					fputs(str, fp);
+					sprintf(str, "%f\n", fval[3 * i + 2][0]);
+					fputs(str, fp);
+				}
+
+				fclose(fp);
+			}
+
+			void loadRealPose(int cid,float* out){
+				char filename[100];
+				char str[100];
+				sprintf(filename, "save/realPose/handPose%d.txt", cid);
+
+				FILE* fp;
+				fp = fopen(filename, "r");
+
+				fseek(fp, 0, SEEK_SET);
+				for (int i = 0; i < 26; i++){
+					fgets(str, sizeof(str), fp);
+					out[i] = std::stof(str);
+				}
+				
+				fclose(fp);
 
 			}
 
@@ -226,6 +251,8 @@ class HandGenerator{
 				}
 				fclose(fp);
 			}
+
+			
 	};
 
 
@@ -261,8 +288,8 @@ class HandGenerator{
 			////////////////////////////////////
 			//--hard coding for manual input--//
 			for (int i = 0; i < 3; i++){
-				posestep[i] = 10; //10: train , 25: test  //8:test
-				posenum[i] = 6;//6: train, 2: test       //4:test
+				posestep[i] = 10; //10: train , 8:test
+				posenum[i] = 6;//6: train, 4:test
 			}
 			posenum_class = posenum[0] * posenum[1] * posenum[2];
 			
@@ -523,14 +550,29 @@ class HandGenerator{
 				_trackbar.wval[j] = wval_a[j] + (fr / (2 * num_between))*(wval_b[j] - wval_a[j]);
 
 			if (type == "thumb"){
-				for (int i = 0; i < 3; i++)
-				for (int j = 0; j < 3; j++)
-					_trackbar.fval[i][j] = fval_a[i][j] + ((fr % (int)num_between) / num_between)*(fval_b[i][j] - fval_a[i][j]);
+				if (fr < num_between){
+					for (int i = 0; i < 3; i++)
+					for (int j = 0; j < 3; j++)
+						_trackbar.fval[i][j] = fval_a[i][j] + (fr / num_between)*(fval_b[i][j] - fval_a[i][j]);
+				}
+				else{
+					for (int i = 0; i < 3; i++)
+					for (int j = 0; j < 3; j++)
+						_trackbar.fval[i][j] = fval_a[i][j] + ((fr -num_between) / num_between)*(fval_b[i][j] - fval_a[i][j]);
+				}
 			}
 			else if (type == "others"){
-				for (int i = 3; i < 15; i++)
-				for (int j = 0; j < 3; j++)
-					_trackbar.fval[i][j] = fval_a[i][j] + ((fr % (int)num_between) / num_between)*(fval_b[i][j] - fval_a[i][j]);
+				if (fr < num_between){
+					for (int i = 3; i < 15; i++)
+					for (int j = 0; j < 3; j++)
+						_trackbar.fval[i][j] = fval_a[i][j] + (fr / num_between)*(fval_b[i][j] - fval_a[i][j]);
+				}
+				else{
+					for (int i = 3; i < 15; i++)
+					for (int j = 0; j < 3; j++)
+						_trackbar.fval[i][j] = fval_a[i][j] + ((fr - num_between) / num_between)*(fval_b[i][j] - fval_a[i][j]);
+
+				}
 			}
 			else if (type == "all"){
 				for (int i = 0; i < 15; i++)
@@ -677,7 +719,7 @@ class HandGenerator{
 		}
 
 
-		void calculateBetweenPostures(int opt,int& classid){
+		void calculateBetweenPostures_backup(int opt,int& classid){
 
 			//openPalm->ESL
 			if (opt == 0){
@@ -757,62 +799,158 @@ class HandGenerator{
 			}
 		}
 
+		void calculateBetweenPostures(int opt, int& classid){
+
+			//openPalm->ESL
+			if (opt == 0){
+				//pose(a)
+				_trackbar.load(-1);
+				_trackbar.run();
+				for (int j = 0; j < 6; j++)
+					wval_a[j] = _trackbar.wval[j];
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_a[i][j] = _trackbar.fval[i][j];
+
+				//--pose(b)
+
+				//for self comparison.a
+				//classid += 1;
+				//_trackbar.load(classid);
+				//for self comparison.b
+				
+				//for epfl.a
+				if (classid == 15){
+					classid += 2;
+					_trackbar.load(classid);
+				}
+				else{
+					classid += 1;
+					_trackbar.load(classid);
+				}
+				//for epfl.b
+
+				_trackbar.run();
+				for (int j = 0; j < 6; j++)
+					wval_b[j] = _trackbar.wval[j];// -20 + 40 * (rand() / double(RAND_MAX));
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_b[i][j] = _trackbar.fval[i][j];
+			}
+			//ESL -> openPalm
+			else if (opt == 1){
+				//pose(a)
+				for (int j = 0; j < 6; j++)
+					wval_a[j] = wval_b[j];
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_a[i][j] = fval_b[i][j];
+
+				//pose(b)
+				_trackbar.load(-1);
+				_trackbar.run();
+				for (int j = 0; j < 6; j++)
+					wval_b[j] = _trackbar.wval[j];
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_b[i][j] = _trackbar.fval[i][j];
+			}
+			//ESL->ESL
+			else if (opt == 2){
+				//pose(a)
+				for (int j = 0; j < 6; j++)
+					wval_a[j] = wval_b[j];
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_a[i][j] = fval_b[i][j];
+
+				//--pose(b)
+
+				//for self comparison.a
+				//classid += 1;
+				//_trackbar.load(classid);
+				//for self comparison.b
+
+				//for comparison.a
+				if (classid == 15){
+					classid += 2;
+					_trackbar.load(classid);
+				}
+				else{
+					classid += 1;
+					_trackbar.load(classid);
+				}
+				//for comparison.b
+				
+
+				_trackbar.run();
+				for (int j = 0; j < 6; j++)
+					wval_b[j] = _trackbar.wval[j];// -20 + 40 * (rand() / double(RAND_MAX));
+				for (int i = 0; i < 15; i++)
+				for (int j = 0; j < 3; j++)
+					fval_b[i][j] = _trackbar.fval[i][j];
+			}
+		}
 		
 
-		int run_sequence_between26(){
+		int run_sequence_between26_self(){
 			static int classid = -1;
 			static int animationIndex = 0;
-
+			
+			
 			//moving posture (0:open->ESL, 1:ESL->open, 2:ESL->ESL ) 
-			static int animationType[32] = { 0, 2, 2, 2, 2, 2,
+			static int animationType[33] = { 0, 2, 2, 2, 2, 2,
 									2, 2, 1, 0, 2,
 									1, 0, 2, 1, 0, 1, 0, 1, 0,
-									2, 2, 1, 0,
+									2, 2,2, 1, 0,
 									1, 0, 2, 2, 2, 2,
 									2, 2 };
 		
 			//0: thumb first,  1: thumb last, 2: all simultaneously.
-			static int movingType[32] = { 2, 1, 2, 2, 1,1,
+			static int movingType[33] = { 2, 1, 2, 2, 1,1,
 				2, 2, 2, 1,2,
 				2, 2, 2, 2,0,1,0,1,2,
-				2,2,2,1,
+				2,2,2,2,1,
 				0,0,2,2,2,2,
 				0,2};
 
 
 			//float num_between = 10; // 2,5,10,20
 			float num_seq = 2 * _num_between;
+			float num_static_seq = 5;
 
 			//set 2 key poses.
 			if (poseidx == 0)
 				calculateBetweenPostures(animationType[animationIndex],classid);
 			
 			//calculate difference between pose(a) and pose(b).
-			if (movingType[animationIndex] == 0){
-				if (poseidx < _num_between)
-					updatePose("thumb", poseidx, _num_between);
-				else
-					updatePose("others", poseidx, _num_between);
+			if (poseidx <= num_seq){ //for static
+				if (movingType[animationIndex] == 0){
+					if (poseidx < _num_between)
+						updatePose("thumb", poseidx, _num_between);
+					else
+						updatePose("others", poseidx, _num_between);
+				}
+				else if (movingType[animationIndex] == 1){
+					if (poseidx < _num_between)
+						updatePose("others", poseidx, _num_between);
+					else
+						updatePose("thumb", poseidx, _num_between);
+				}
+				else if (movingType[animationIndex] == 2){
+					updatePose("all", poseidx, _num_between);
+				}
 			}
-			else if (movingType[animationIndex] == 1){
-				if (poseidx < _num_between)
-					updatePose("others", poseidx, _num_between);
-				else
-					updatePose("thumb", poseidx, _num_between);
-			}
-			else if (movingType[animationIndex] == 2){
-				updatePose("all", poseidx, _num_between);
-			}
+			
 		
 		//	printf("classid:%d\n", classid);
 			//
 			poseidx++;
-			if (poseidx == (int)num_seq){
+			if (poseidx == (int)num_seq+num_static_seq){ //for static
+			//if (poseidx == (int)num_seq){
 				poseidx = 0;
 				animationIndex += 1;
 
-				//if (halfSeq == true) halfSeq = false;
-				//else halfSeq = true;
 			}
 
 			if (classid == 25 && poseidx==0)
@@ -822,25 +960,94 @@ class HandGenerator{
 			return 0;
 		}
 
+
+		int run_sequence_between26_comparison(){
+			static int classid = -1;
+			static int animationIndex = 0;
+
+			//static int classid = 13;
+			//static int animationIndex = 0;
+			//
+
+			//moving posture (0:open->ESL, 1:ESL->open, 2:ESL->ESL ) 
+			static int animationType[32] = { 0, 2, 2, 2, 2, 2,
+				2, 2, 1, 0, 2,
+				1, 0, 2, 1, 0, 1, 0, 1, 0,
+				2, 2, 1, 0,
+				1, 0, 2, 2, 2, 2,
+				2, 2 };
+
+			//0: thumb first,  1: thumb last, 2: all simultaneously.
+			static int movingType[32] = { 2, 1, 2, 2, 1, 1,
+				2, 2, 2, 1, 2,
+				2, 2, 2, 2, 0, 1, 0, 1, 2,
+				2, 2,2, 1,
+				0, 0, 2, 2, 2, 2,
+				0, 2 };
+
+
+			//float num_between = 10; // 2,5,10,20
+			float num_seq = 2 * _num_between;
+			float num_static_seq = 5;
+
+			//set 2 key poses.
+			if (poseidx == 0)
+				calculateBetweenPostures(animationType[animationIndex], classid);
+
+			//calculate difference between pose(a) and pose(b).
+			if (poseidx <= num_seq){ //for static
+				if (movingType[animationIndex] == 0){
+					if (poseidx < _num_between)
+						updatePose("thumb", poseidx, _num_between);
+					else
+						updatePose("others", poseidx, _num_between);
+				}
+				else if (movingType[animationIndex] == 1){
+					if (poseidx < _num_between)
+						updatePose("others", poseidx, _num_between);
+					else
+						updatePose("thumb", poseidx, _num_between);
+				}
+				else if (movingType[animationIndex] == 2){
+					updatePose("all", poseidx, _num_between);
+				}
+			}
+
+			//	printf("classid:%d\n", classid);
+			//
+			poseidx++;
+			if (poseidx == (int)num_seq + num_static_seq){ //for static
+			//if (poseidx == (int)num_seq){
+				poseidx = 0;
+				animationIndex += 1;
+
+			}
+
+			if (classid == 25 && poseidx == 0)
+				return -1;
+
+
+			return 0;
+		}
 		
 
 		int test(){
 			
-			//if (cv::waitKey(1) == 'p'){
 				
-			/*
-				classid++;
-				if (classid == 26)
-					classid = 0;
-			*/
+			static int classid = 0;
 
-				_trackbar.load(0);
-				_trackbar.run();
+			if (cv::waitKey(1) == 'l'){
+				int cid;
+				printf("class index to load:\n");
+				std::cin >> cid;
+				_trackbar.load(cid);
+			}
 
-				//_trackbar.wval[3] += 0;
-				//_trackbar.fval[0][0] += 30;
+			_trackbar.run();
 
-			//}
+			classid++;
+			if (classid == 26)
+				classid = 0;
 			
 			return 0;
 		}
@@ -960,6 +1167,11 @@ public:
 		printf("class index to load:\n");
 		std::cin >> cid;
 		_trackbar.load(cid);
+
+		//save real hand pose.
+		//_trackbar.run();
+		//_trackbar.saveRealPose(cid);
+
 
 	}
 	void run_gui2hand(std::string type){
@@ -1105,9 +1317,10 @@ public:
 
 			cv::circle(cam_color, cv::Point(x_, y_), 10, cv::Scalar(255, 0, 0), 1, 8, 0);
 		}
-		cv::imshow("groundtruth", cam_color);
+		//cv::imshow("groundtruth", cam_color);
 
 		//color code visualization
+		/*
 		cv::Mat mask = cam_depth >0;
 		double min;
 		double max;
@@ -1120,6 +1333,7 @@ public:
 		applyColorMap(adjMap, falseColorsMap, 2);// cv::COLORMAP_AUTUMN);
 		cv::imshow("groundtruth1", falseColorsMap);
 		cv::moveWindow("groundtruth1", 640 * 3, 0);
+		*/
 
 		//distance between joints	
 		/*

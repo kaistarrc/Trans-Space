@@ -61,7 +61,7 @@ public:
 		oimg = cv::Mat(height_fb, width_fb, CV_32FC1);
 		cudaMalloc(&oimg_cu, sizeof(float)*width_fb*height_fb);
 
-		dif_max = 40;
+		dif_max = 40;//40
 		block_numx = width / 32;
 		block_numy = height / 32;
 		//initCudaMem(width, height, particle_numx, particle_numy, 4, 4);

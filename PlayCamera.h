@@ -25,7 +25,7 @@ public:
 
 		//depth = cv::Mat(height, width, CV_16UC1);
 
-		_frame = 0;//120;//200;
+		//_frame = 41;//120;//200;
 
 		//
 
@@ -104,9 +104,9 @@ public:
 		return true;
 	}
 
-	void getLearningImages(cv::Mat& out){
+	void getLearningImages(cv::Mat& out,int frame){
 		char filename[200];
-		sprintf(filename, "record/test_posture/data/data%d.png", _frame);
+		sprintf(filename, "record/test_posture/data/data%d.png", frame);
 		out = cv::imread(filename, 0);
 
 
@@ -128,7 +128,7 @@ public:
 
 
 	cv::Mat cameraMatrix;
-	int _frame;
+	//int _frame;
 
 	string _testType;
 

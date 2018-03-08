@@ -1061,7 +1061,7 @@ void Hand::SetJoint(int jn, int pc, float x, float y, float z)
 	if (jn == 3)
 		sy = 1.1;
 	if (jn == 6)
-		sy = 1.2;
+		sy = 1.1;
 	if (jn == 9)
 		sy = 1.1;
 	if (jn == 12)

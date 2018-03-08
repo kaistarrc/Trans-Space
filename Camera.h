@@ -46,6 +46,7 @@ public:
 		calib_mat.at<float>(1, 0) = 0.0; calib_mat.at<float>(1, 1) = 477.9; calib_mat.at<float>(1, 2) = 240.0;
 		calib_mat.at<float>(2, 0) = 0.0; calib_mat.at<float>(2, 1) = 0.0; calib_mat.at<float>(2, 2) = 1.0;
 
+		//_frame = 0;
 		_frame = 0;
 		//_frame = 2;
 		
@@ -89,6 +90,7 @@ public:
 		else if (_camtype.compare("glcamera_gui") == 0){
 			handgenerator->_trackbar.run();// run_trackbar();
 
+	
 			if (cv::waitKey(1) == 's')
 				handgenerator->save_trackbar();
 			if (cv::waitKey(1) == 'l')
@@ -102,8 +104,8 @@ public:
 			//if (handgenerator->_posesetgenerator.run_sequence() == -1)
 			//if (handgenerator->_posesetgenerator.run_sequence_between_FingerTest() == -1)
 			//if (handgenerator->_posesetgenerator.run_sequence_between_includingOpenPalm() == -1)
-			if (handgenerator->_posesetgenerator.run_sequence_between26() == -1)
-			//if (handgenerator->_posesetgenerator.run_sequence_between52() == -1)
+			//if (handgenerator->_posesetgenerator.run_sequence_between26_self() == -1)
+			if (handgenerator->_posesetgenerator.run_sequence_between26_comparison() == -1)
 				return false;
 		}
 		else if (_camtype.compare("glcamera_test") == 0){
@@ -238,24 +240,35 @@ public:
 					cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
 
 				char filename[200];
-				sprintf(filename, "save/sequence/vga/depth-%07u.png", _frame);
+				sprintf(filename, "save/sequence/vga_20/depth-%07u.png", _frame);
 
 				cv::imwrite(filename, cam_depth16);
 
 			}
 
 			{
-			char filename[200];
-			sprintf(filename, "save/sequence/vga/color-%07u.png", _frame);
-			cv::imwrite(filename, cam_color);
+				char filename[200];
+				sprintf(filename, "save/sequence/vga_20/color-%07u.png", _frame);
+				cv::imwrite(filename, cam_color);
 			}
+
+			//for posture
+			/*
+			{
+				char filename[100];
+				sprintf(filename, "save/sequence/LearningDataset/train/%d/data0_%d.png", _frame / (6 * 6 * 6), 300 + _frame % (6 * 6 * 6));
+				//sprintf(filename, "save/sequence/LearningDataset/test/%d/data0_%d.png", _frame / (4 * 4 * 4), 100 + _frame % (4 * 4 * 4));
+				
+				cv::imwrite(filename, cam_depth16);
+			}
+			*/
 		}
 
 		//for epfl algorithm
 		if (opt == "all" || opt == "epfl"){
 			{
 				char filename[200];
-				sprintf(filename, "save/sequence/qvga/color-%07u.png", _frame);
+				sprintf(filename, "save/sequence/qvga_20/color-%07u.png", _frame);
 
 				cv::Mat color320t = cv::Mat(height / 2, width / 2, CV_8UC3);
 				cv::Mat color320 = cv::Mat(height / 2, width / 2, CV_8UC3);
@@ -271,7 +284,7 @@ public:
 
 			{
 			char filename[200];
-			sprintf(filename, "save/sequence/qvga/depth-%07u.png", _frame);
+			sprintf(filename, "save/sequence/qvga_20/depth-%07u.png", _frame);
 
 			cv::Mat depth320 = cv::Mat(height / 2, width / 2, CV_16UC1);
 			cv::resize(cam_depth16, depth320, cv::Size(width / 2, height / 2), 0, 0, 1);
@@ -297,10 +310,11 @@ public:
 	
 
 	PlayCamera* playcamera;
+	RealSenseCVWrapper* realcamera;
 
 private:
 
-	RealSenseCVWrapper* realcamera;
+	
 	HandGenerator* handgenerator;
 	GLRenderer* glcamera;
 	NYUCamera* nyucamera;

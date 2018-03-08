@@ -458,6 +458,7 @@ public:
 
 	int getComHandxyz(cv::Mat depth, float* com){
 		float c = 0;
+		com[0] = 0; com[1]=0; com[2]=0;
 		for (int i = 0; i < width; i++)
 		for (int j = 0; j < height; j++){
 
