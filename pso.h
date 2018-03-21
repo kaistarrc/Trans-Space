@@ -66,6 +66,9 @@ class PSO{
 
 public:
 	cv::Mat gbest;
+
+	string _testimagetype;
+	string _trackingtype;
 	
 
 	PSO(int p_numX, int p_numY, int g_num, int dim,
@@ -104,9 +107,11 @@ public:
 		boundary_cnn = cv::Mat(2, dimension, CV_32FC1);
 		boundary_const = cv::Mat(2, dimension, CV_32FC1);
 		cost = cv::Mat(1, particle_num, CV_32FC1);//
+		cost_fitting = cv::Mat(1, particle_num, CV_32FC1);//
 		cost_pre = cv::Mat(1, particle_num, CV_32FC1);
 		cost_dif = cv::Mat(1, particle_num, CV_32FC1);
 		cost_pbest = cv::Mat(1, particle_num, CV_32FC1);
+		cost_pbest_fitting = cv::Mat(1, particle_num, CV_32FC1);
 		pose_cnn = cv::Mat(1, dimension, CV_32FC1);
 		cov_track = cv::Mat(1, dimension, CV_32FC1);
 		cov_cnn = cv::Mat(1, dimension, CV_32FC1);
@@ -207,10 +212,17 @@ public:
 		cv::resize(cam_depth, cam_depth_track, cv::Size(_glrenderer.width, _glrenderer.height), 0, 0, CV_INTER_NN);		
 		_costFunct.transferObservation2GPU(cam_depth_track);
 
+		//
+		cv::Mat cam_depth8u = cv::Mat(64, 64, CV_8UC3);
+		cv::normalize(cam_depth_track, cam_depth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
+		cv::imshow("depth_pso", cam_depth8u);
+
+		//
 		collisionNumber_track.setTo(0);
 		collisionNumber_cnn.setTo(0);
 
 #pragma region set pose_cnn / boundary_cnn 
+		//printf("getcnn.a\n");
 		if (type != "0"){
 
 			//from manual cnn
@@ -239,10 +251,13 @@ public:
 			*/
 
 			//from trained cnn(1D)
-			float cnnresult;
+			float cnnresult=0;
 			_mmf->receiveData();
 			_mmf->getLabel(&cnnresult);
+			_cnnresult = cnnresult;
+			//if (cnnresult == 9)	cnnresult = 7;
 			_renderer->_trackbar.loadRealPose(cnnresult,&pose_cnn.at<float>(0, 0));
+			
 
 			for (int i = 0; i < 3; i++)
 				pose_cnn.at<float>(0, i) = com_hand[i];
@@ -260,7 +275,9 @@ public:
 			//set boundary cnn
 			setBoundary_cnn();
 		}
+		//printf("getcnn.b\n");
 #pragma endregion
+		
 		
 #pragma region initialize 
 		initializeVelocity();
@@ -287,7 +304,7 @@ public:
 			calculateGbest(0, particle_num, gbest);
 		}
 
-
+		
 	//check search space from true pose.
 		/*
 		printf("--------tracking boundary--------\n");
@@ -335,6 +352,7 @@ public:
 			}
 			else if (type=="2" || type=="4"){
 	
+				//if(g<=10){
 				if (g <= 5){
 					calculateVelocity(0, particle_num / 2, gbest_track, boundary_track);
 					updateAll(0, particle_num / 2, boundary_track, collisionNumber_track,"damping");
@@ -367,14 +385,26 @@ public:
 			else{
 				calculateGbest(0, particle_num, gbest);
 			}
+
+			//save value of fitting term
+			if (_frame == 184)
+			{
+				string fname1 = "save/sequence/uvrCost_" + _trackingtype + ".csv";
+				static ofstream file1(fname1);
+				file1 << cost_gbest << endl;
+
+				string fname2 = "save/sequence/uvrCostFitting_" + _trackingtype + ".csv";
+				static ofstream file2(fname2);
+				file2 << cost_gbest_fitting << endl;
+			}
 			
 #pragma endregion
 			
 #pragma region change boundary
 	
 		if (type == "2" || type=="4"){
-			//if (g >= 5 && g % 5 == 0)//if (g >= 5 && g % 5 == 0)
-			if (g>=5)
+			//if (g>=10) 
+			if(g>=5) 
 			{
 				float a=bound_dvar_min + g*(bound_dvar_max - bound_dvar_min) / max_generation;
 
@@ -479,11 +509,11 @@ public:
 			//if (g==max_generation-1)
 			//showObModelParticles("during", "nosave", g);
 #ifdef DEBUGGING
-			debugParticles(g);
+			//debugParticles(g);
 
 			cv::Mat ddimg;
 			ddimg = getObModelParticles();
-			showObModelParticles("during", "save", g);
+			showObModelParticles("during", "nosave", g);
 			cv::moveWindow("during", 2000, 0);
 
 			cv::Mat bbt = boundary_track;
@@ -582,11 +612,17 @@ public:
 			
 
 			//check limit of boundary
-			if (boundary_track.at<float>(0, j) < boundary_max[0][j])
-				boundary_track.at<float>(0, j) = boundary_max[0][j];
+			if (j >= 3){
+				if (boundary_track.at<float>(0, j) < boundary_max[0][j])
+					boundary_track.at<float>(0, j) = boundary_max[0][j];
+				if (boundary_track.at<float>(0, j) > boundary_max[1][j])
+					boundary_track.at<float>(0, j) = boundary_max[0][j];
 
-			if (boundary_track.at<float>(1, j) > boundary_max[1][j])
-				boundary_track.at<float>(1, j) = boundary_max[1][j];
+				if (boundary_track.at<float>(1, j) > boundary_max[1][j])
+					boundary_track.at<float>(1, j) = boundary_max[1][j];
+				if (boundary_track.at<float>(1, j) < boundary_max[0][j])
+					boundary_track.at<float>(1, j) = boundary_max[1][j];
+			}
 
 			//if (boundary_track.at<float>(1, j) > boundary_max[1][j])
 			//	boundary_track.at<float>(1, j) = boundary_max[1][j];
@@ -635,8 +671,12 @@ public:
 			//check limit of boundary
 			if (boundary_cnn.at<float>(0, j) < boundary_max[0][j])
 				boundary_cnn.at<float>(0, j) = boundary_max[0][j];
+			if (boundary_cnn.at<float>(0, j) > boundary_max[1][j])
+				boundary_cnn.at<float>(0, j) = boundary_max[0][j];
 
 			if (boundary_cnn.at<float>(1, j) > boundary_max[1][j])
+				boundary_cnn.at<float>(1, j) = boundary_max[1][j];
+			if (boundary_cnn.at<float>(1, j) < boundary_max[0][j])
 				boundary_cnn.at<float>(1, j) = boundary_max[1][j];
 
 		}
@@ -650,6 +690,7 @@ public:
 			float b0 = b.at<float>(0, j);// boundary.at<float>(j, 0);
 			float b1 = b.at<float>(1, j);// boundary.at<float>(j, 1);
 
+			//printf("[%d] b0:%f b1:%f\n",j, b0, b1);
 			if (i == end_p - 1)
 				position.at<float>(i, j) = p.at<float>(0, j);// gbest_pre.at<float>(j, 0);
 			else
@@ -724,11 +765,51 @@ public:
 
 	}
 
+	void calculateCost(int g, std::string const& type){
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		for (int px = 0; px < particle_numx; px++)
+		for (int py = 0; py < particle_numy; py++)
+		{
+
+			float* solp = &position.at<float>(px + py*particle_numx, 0);
+			_renderer->renderTile(px, py, solp, "depth");
+		}
+		glFinish();
+
+		//data term
+		_costFunct.calculateCost(cost);
+
+		for (int i = 0; i < particle_num; i++)
+			cost_fitting.at<float>(0, i) = cost.at<float>(0, i);
+
+		// + cnn pose term
+		if (type == "3" || type == "4"){
+			for (int i = 0; i < particle_num; i++)
+			{
+
+
+				//printf("cost:%f , ", cost.at<float>(0, i));
+				float cost_pose = 0;
+				for (int j = 3; j < dimension; j++){
+					//if ((j-6)%4!=1)
+					cost_pose += abs(pose_cnn.at<float>(0, j) - position.at<float>(i, j)) / (boundary_max[1][j] - boundary_max[0][j]);
+				}
+				cost_pose /= (float)(dimension - 3);
+				cost.at<float>(0, i) += 0.5*cost_pose;
+
+				//printf("  %f\n", cost.at<float>(0, i));
+			}
+		}
+	}
+
 	void calculatePbest(){
 		for (int i = 0; i < particle_num; i++){
 			if (cost.at<float>(0, i) < cost_pbest.at<float>(0, i))
 			{
 				cost_pbest.at<float>(0, i) = cost.at<float>(0, i);
+				cost_pbest_fitting.at<float>(0, i) = cost_fitting.at<float>(0, i);
+
 				for (int j = 0; j < dimension; j++)
 					pbest.at<float>(i, j) = position.at<float>(i, j);
 			}
@@ -741,6 +822,8 @@ public:
 			{
 				min = cost_pbest.at<float>(0, i);
 				cost_gbest = min;
+				cost_gbest_fitting = cost_pbest_fitting.at<float>(0, i);
+
 				for (int j = 0; j < dimension; j++)
 					out.at<float>(0, j) = pbest.at<float>(i, j);
 
@@ -956,37 +1039,6 @@ public:
 		}
 	}
 
-	void calculateCost(int g, std::string const& type){
-
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		for (int px = 0; px < particle_numx; px++)
-		for (int py = 0; py < particle_numy; py++)
-		{
-
-			float* solp = &position.at<float>(px + py*particle_numx, 0);
-			_renderer->renderTile(px, py, solp, "depth");
-		}
-		glFinish();
-
-		//data term
-		_costFunct.calculateCost(cost);
-
-		//cnn pose term
-		if(type=="3" || type=="4"){
-			for (int i = 0; i < particle_num; i++)
-			{
-				float cost_pose = 0;
-				for (int j = 3; j < dimension; j++){
-					//if ((j-6)%4!=1)
-					cost_pose += abs(pose_cnn.at<float>(0, j) - position.at<float>(i, j)) / (boundary_max[1][j] - boundary_max[0][j]);
-				}
-				cost_pose /= (float)(dimension - 3);
-				cost.at<float>(0, i) += 0.5*cost_pose;  //0.3*cost_pose
-			}
-		}	
-	}
-
-	
 
 	void showTextureFromCPU()
 	{
@@ -1025,6 +1077,7 @@ public:
 		*/
 
 		//-- depth
+		//solp[0] += 100;
 		_renderer->renderOrig(solp, "depth");
 		cv::Mat model_depth;
 		_glrenderer.getOrigImage(model_depth, "depth");
@@ -1054,11 +1107,24 @@ public:
 				falseColorsMap.at<uchar>(j, 3 * i + 1) = 0;
 				falseColorsMap.at<uchar>(j, 3 * i + 2) = 0;
 			}
-
 		}
 
+		//cv::imshow(wname+"_model2", falseColorsMap);
+
+		
 		cv::Mat fimg;
-		cv::addWeighted(cam_color, 1.0, falseColorsMap, 1.0, 0, fimg);
+		cv::addWeighted(cam_color, 0.6, falseColorsMap, 1.0, 0, fimg);
+
+		//text for ASL
+		{
+			char text_c[100];
+			char asl = _cnnresult;
+			//sprintf(text_c, "%d:%c", (int)_cnnresult, asl+'A');
+			sprintf(text_c, "%c", asl + 'A');
+			cv::putText(fimg, text_c, cvPoint(10,40), 1, 3, cv::Scalar(0, 255, 0));
+
+		}
+		//text for ASL
 		cv::imshow(wname, fimg);
 
 
@@ -1696,7 +1762,7 @@ public:
 	}
 
 	void saveImage(cv::Mat cam_color,std::string testImageType,std::string trackingType, int frame){
-
+		
 		float* solp = &position.at<float>(0, 0);
 
 		//-- depth
@@ -1716,10 +1782,43 @@ public:
 		cv::Mat falseColorsMap;
 		applyColorMap(adjMap, falseColorsMap, 2);
 		
+
+		for (int i = 0; i < falseColorsMap.size().width; i++)
+		for (int j = 0; j < falseColorsMap.size().height; j++)
+		{
+			float b = falseColorsMap.at<uchar>(j, 3 * i + 0);
+			float g = falseColorsMap.at<uchar>(j, 3 * i + 1);
+			float r = falseColorsMap.at<uchar>(j, 3 * i + 2);
+
+			if (b >= 125 && g == 0 && r == 0){
+				falseColorsMap.at<uchar>(j, 3 * i + 0) = 0;
+				falseColorsMap.at<uchar>(j, 3 * i + 1) = 0;
+				falseColorsMap.at<uchar>(j, 3 * i + 2) = 0;
+			}
+		}
+		cv::imshow("hoho", falseColorsMap);
+
+		
 		cv::Mat fimg;
 		cv::addWeighted(cam_color, 0.5, falseColorsMap, 1.0, 0, fimg);
 		
-		
+
+		//change background to white
+		for (int i = 0; i < fimg.size().width; i++)
+		for (int j = 0; j < fimg.size().height; j++)
+		{
+			float b = fimg.at<uchar>(j, 3 * i + 0);
+			float g = fimg.at<uchar>(j, 3 * i + 1);
+			float r = fimg.at<uchar>(j, 3 * i + 2);
+			if (b == 0 && g == 0 && r == 0)
+			{
+				fimg.at<uchar>(j, 3 * i + 0) = 255;
+				fimg.at<uchar>(j, 3 * i + 1) = 255;
+				fimg.at<uchar>(j, 3 * i + 2) = 255;
+			}
+		}
+		cv::imshow("hoho3", fimg);
+
 		//char filename[200];
 		//sprintf(filename, "save/sequence/uvrResult/result-%07u.png", frame);
 		//cv::imwrite(filename, fimg);
@@ -1864,12 +1963,15 @@ public:
 	cv::Mat pvel;
 	cv::Mat boundary_track, boundary_cnn, boundary_const;
 	cv::Mat cost;//
+	cv::Mat cost_fitting;
 	cv::Mat cost_pre;
 	cv::Mat cost_dif;//
 
 	cv::Mat cost_pbest;
+	cv::Mat cost_pbest_fitting;
 	cv::Mat pose_cnn;
 	float cost_gbest;
+	float cost_gbest_fitting;
 	float cost_gbest_pre;
 	cv::Mat cov_track;
 	cv::Mat cov_cnn;
@@ -1902,9 +2004,9 @@ public:
 	int bound_T1;
 	int bound_T2;
 
-	
-
 	int gbestIdx;
+
+	float _cnnresult;
 
 	//random
 	std::mt19937 mutable gen_gaussian; //random geneartor (gaussian)

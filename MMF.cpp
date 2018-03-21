@@ -89,29 +89,32 @@ MMF::~MMF(){
 void MMF::send2CNN(){
 
 	//cvWaitKey(1); // to 1?
-
+	
 WaitForSingleObject(hEvent2, INFINITE);
 	for (int i = 0; i<width; i++)
 	for (int j = 0; j<height; j++)
 	{
 		lpMapping_send[i + j * width] = _cnnimg.at<float>(j, i);
 	}
+
 SetEvent(hEvent); // 상대를 깨운다
 
 	getimg_bool = false;
 	//printf("mmf.data has been sended\n");
-
+	
 }
 
 int MMF::receiveData()
 {
 
+	
 WaitForSingleObject(hEvent3, INFINITE);//
 	//DL_result = lpMapping_receive[0];
 	for (int i = 0; i < DATA_LEN2; i++){
 		DL_result[i] = lpMapping_receive[i];
+		
 	}
-
+	
 	//printf("dlresult:%f\n", DL_result[0]);
 
 SetEvent(hEvent4);

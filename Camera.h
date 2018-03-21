@@ -102,10 +102,10 @@ public:
 		}
 		else if (_camtype.compare("glcamera_sequence") == 0){
 			//if (handgenerator->_posesetgenerator.run_sequence() == -1)
-			//if (handgenerator->_posesetgenerator.run_sequence_between_FingerTest() == -1)
 			//if (handgenerator->_posesetgenerator.run_sequence_between_includingOpenPalm() == -1)
 			//if (handgenerator->_posesetgenerator.run_sequence_between26_self() == -1)
 			if (handgenerator->_posesetgenerator.run_sequence_between26_comparison() == -1)
+			//if (handgenerator->_posesetgenerator.run_sequence_between_FingerTest() == -1)
 				return false;
 		}
 		else if (_camtype.compare("glcamera_test") == 0){
@@ -229,7 +229,7 @@ public:
 	}
 
 
-	void recordFrames(std::string opt){
+	void recordFrames(std::string opt,int n){
 		printf("Record frame: %d \n",_frame);
 
 		//for my algorithm
@@ -240,7 +240,7 @@ public:
 					cam_depth16.at<ushort>(j, i) = cam_depth.at<float>(j, i);
 
 				char filename[200];
-				sprintf(filename, "save/sequence/vga_20/depth-%07u.png", _frame);
+				sprintf(filename, "save/sequence/vga_%d/depth-%07u.png", n,_frame);
 
 				cv::imwrite(filename, cam_depth16);
 
@@ -248,7 +248,7 @@ public:
 
 			{
 				char filename[200];
-				sprintf(filename, "save/sequence/vga_20/color-%07u.png", _frame);
+				sprintf(filename, "save/sequence/vga_%d/color-%07u.png", n,_frame);
 				cv::imwrite(filename, cam_color);
 			}
 
@@ -268,7 +268,7 @@ public:
 		if (opt == "all" || opt == "epfl"){
 			{
 				char filename[200];
-				sprintf(filename, "save/sequence/qvga_20/color-%07u.png", _frame);
+				sprintf(filename, "save/sequence/qvga_%d/color-%07u.png",n, _frame);
 
 				cv::Mat color320t = cv::Mat(height / 2, width / 2, CV_8UC3);
 				cv::Mat color320 = cv::Mat(height / 2, width / 2, CV_8UC3);
@@ -284,7 +284,7 @@ public:
 
 			{
 			char filename[200];
-			sprintf(filename, "save/sequence/qvga_20/depth-%07u.png", _frame);
+			sprintf(filename, "save/sequence/qvga_%d/depth-%07u.png",n, _frame);
 
 			cv::Mat depth320 = cv::Mat(height / 2, width / 2, CV_16UC1);
 			cv::resize(cam_depth16, depth320, cv::Size(width / 2, height / 2), 0, 0, 1);

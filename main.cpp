@@ -70,9 +70,18 @@ void* sendImage_learning(void* data)
 *  save and test on sequence data
 *
 **/
-#define SAVE_SYNTHETIC_SEQUENCE_COMPARISON  //o
+//#define SAVE_SYNTHETIC_SEQUENCE_COMPARISON  //o
+//#define SAVE_REAL_SEQUENCE_COMPARISON
+//#define MODEL_DEBUGGING_FORTH
+
 //#define SAVE_REALTIME
 //#define TEST_ON_SEQUENCE     //o
+
+
+//#define SAVE_REAL_SEQUENCE_COMPARISON
+//#define TEST_REALTIME
+#define TEST_ON_SEQUENCE
+
 
 /*/
 *  test algorithm based on real camera.
@@ -81,23 +90,18 @@ void* sendImage_learning(void* data)
 //#define TEST_REALTIME                      //o
 
 
-
-
-
-
-
-
 void main(int argc, char** argv)
 {
 	
 #pragma region user parameter setting
 
 	//--model size---
-	//good except for pinky.
-	float sx_palm = 8; float sy_palm = 8; float sz_palm = 8; 
+	float sx_palm = 8; float sy_palm = 8; float sz_palm = 8;  //self comparison dataset.
+	//float sx_palm = 9; float sy_palm = 8; float sz_palm = 8;  //comparison dataset to other algorithms.
+
 	float sx_finger=1, sy_finger=1, sz_finger=1;
 
-
+	
 	/**
 	*   \camera type
 	*   \"realcamera", "playcamera", "nyucamera"
@@ -213,18 +217,62 @@ void main(int argc, char** argv)
 #ifdef TEST_REALTIME
 
 	cameratype = "realcamera";
-	trackingtype = "2";
+	trackingtype = "4";
 	if (trackingtype != "0")
 		sendCNN_enable=true;
 	
 	runPSO_enable = true;
 	segmenthand_enable = true;
 
+	//with save
+	saveimage_enable = true;
+	recordFrameOpt = "all";
+	upframe_enable = false;
+	num_between = -2; //-1:slow motion, 0:fast motion, -2: from out of field of view
+
 
 
 	setup_model_path_low = "data/hand_20180226_1.dae";
 	setup_modelTexture_path = "data/hand_2.bmp";
 #endif
+
+#ifdef TEST_REALTIME
+
+	cameratype = "realcamera";
+	trackingtype = "4";
+	if (trackingtype != "0")
+		sendCNN_enable=true;
+
+	runPSO_enable = true;
+	segmenthand_enable = true;
+
+	//with save
+	//saveimage_enable = true;
+	//recordFrameOpt = "all";
+	//upframe_enable = false;
+	//num_between = 0; //-1:slow motion, 0:fast motion
+
+
+
+	setup_model_path_low = "data/hand_20180226_1.dae";
+	setup_modelTexture_path = "data/hand_2.bmp";
+#endif
+
+
+#ifdef SAVE_REAL_SEQUENCE_COMPARISON
+	cameratype = "realcamera";
+	saveimage_enable = true;
+	recordFrameOpt = "all";
+	upframe_enable=true;
+
+	num_between = 0;
+
+	//setup_model_path_low = "data/wristHand_20180226_2.dae";
+	//setup_modelTexture_path = "data/wristHand_1.bmp";
+
+#endif
+
+
 
 #ifdef SAVE_SYNTHETIC_SEQUENCE_COMPARISON
 	cameratype = "glcamera_sequence";
@@ -235,34 +283,50 @@ void main(int argc, char** argv)
 	showgroundtruth_enable = true;
 
 
-	num_between = 100;//2,5,10
+	num_between = 10;//2,5,10,20
 
 
 	setup_model_path_low = "data/wristHand_20180226_2.dae";
 	setup_modelTexture_path = "data/wristHand_1.bmp";
+#endif
 
-	//sx_palm = 9; sy_palm = 9; sz_palm = 9;//x :가로  , y: 두께,   z: 세로
-	
+#ifdef MODEL_DEBUGGING_FORTH
+	cameratype = "glcamera_sequence";
+	saveimage_enable = true;
+	recordFrameOpt = "all";
+	savegroundtruth_enable = true;
+	upframe_enable = true;
+	showgroundtruth_enable = true;
+
+	//x :가로  , y: 두께,   z: 세로
+	sx_palm = 8; 
+	sy_palm = 8; 
+	sz_palm = 8;
+	num_between = 20;//2,5,10
+	float sx_palm = 9; float sy_palm = 8; float sz_palm = 8; 
+
+
+	setup_model_path_low = "data/wristHand_20180226_2.dae";
+	setup_modelTexture_path = "data/wristHand_1.bmp";
 #endif
 
 #ifdef TEST_ON_SEQUENCE
+	//cameratype = "playcamera";
+	//testImageType = argv[2];//argv[2];
+	//trackingtype = argv[3];// "0","1","2","3","4"
+	//segmenthand_enable = true;
+
 	//cameratype = "playcamera";
 	//testImageType = "vga_2"; //"vga_2","vga_5","vga_10"
 	//trackingtype = "1"; //"0","1","2',"3","4"
 	//segmenthand_enable = true;
 
 	cameratype = "playcamera";
-	testImageType = argv[2];//argv[2];
-	trackingtype = argv[3];// "0","1","2","3","4"
+	testImageType = "vga_-2"; //"vga_-2", "vga_-1", "vga_0"
+	trackingtype = "4";
 	segmenthand_enable = true;
 
-	//cameratype = "glcamera_sequence";
-	//num_between = 2;
-	//trackingtype = "4";
-	
-	
-	
-	
+
 	if (trackingtype != "0")
 		sendCNN_enable=true;
 	
@@ -274,15 +338,18 @@ void main(int argc, char** argv)
 	setup_model_path_low = "data/hand_20180226_1.dae";
 	setup_modelTexture_path = "data/hand_2.bmp";
 
-	//sx_palm =9 ; sy_palm = 9; sz_palm = 9; //x :가로  , y: 두께,   z: 세로
+	//sx_palm =8.2 ; sy_palm = 8; sz_palm = 8; //x :가로  , y: 두께,   z: 세로
 	
 #endif
 
 #ifdef SAVE_TRACKBAR_POSTURE_SYNTHETIC
 	cameratype = "glcamera_gui";
 
-	setup_model_path_low = "data/wristHand_20180226_2.dae";
-	setup_modelTexture_path = "data/wristHand_1.bmp";
+	//setup_model_path_low = "data/wristHand_20180226_2.dae";
+	//setup_modelTexture_path = "data/wristHand_1.bmp";
+
+	setup_model_path_low = "data/hand_20180226_1.dae";
+	setup_modelTexture_path = "data/hand_2.bmp";
 
 	showgroundtruth_enable = true;
 #endif
@@ -354,6 +421,9 @@ void main(int argc, char** argv)
 	if (cameratype == "playcamera")	
 		camera.playcamera->_testType = testImageType;
 
+	pso._trackingtype = trackingtype;
+	pso._testimagetype = testImageType;
+
 	//common variable
 	float com_hand[3];
 	
@@ -369,9 +439,9 @@ void main(int argc, char** argv)
 		camera.getDepthBuffer(cam_depth);
 		//cv::imshow("cam_depth", cam_depth);
 		
-		//cv::Mat cam_depth8u = cv::Mat(height, width, CV_8UC3);
-		//cv::normalize(cam_depth, cam_depth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
-		//cv::imshow("cam_depth8u", cam_depth8u);
+		cv::Mat cam_depth8u = cv::Mat(height, width, CV_8UC3);
+		cv::normalize(cam_depth, cam_depth8u, 0, 255, cv::NORM_MINMAX, CV_8UC3);
+		cv::imshow("cam_depth8u", cam_depth8u);
 
 		//cv::Mat cam_rgb;
 		//camera.realcamera->getColorBuffer(cam_rgb);
@@ -379,7 +449,7 @@ void main(int argc, char** argv)
 
 		cv::Mat cam_color;
 		camera.getMappedColorBuffer(cam_color);
-		//cv::imshow("cam_rgb2depth", cam_color);
+		cv::imshow("cam_rgb2depth", cam_color);
 		//cv::moveWindow("cam_color", 640 * 2, 0);
 		//glutSwapBuffers();
 
@@ -396,13 +466,14 @@ void main(int argc, char** argv)
 
 #pragma endregion
 		
-
+		
 #pragma region make cnn image & transfer it to CNN.
+		//printf("send cnn.a\n");
 		if (sendCNN_enable==true){
 			cv::Mat depth_cnn;
 			preproc.makeCnnImage(cam_depth);
 			preproc.getCnnImage(depth_cnn);
-			//cv::imshow("depth_cnn", depth_cnn);
+			cv::imshow("depth_cnn", depth_cnn);
 
 			if (mmf.getimg_bool == false)
 			{
@@ -417,6 +488,7 @@ void main(int argc, char** argv)
 				mmf.send2CNN();
 			}
 		}
+		//printf("send cnn.b\n");
 #pragma endregion
 	
 #pragma region show ground truth 
@@ -544,8 +616,10 @@ void main(int argc, char** argv)
 			//pso.experimentID = std::atoi(argv[1]);
 
 			pso.experimentID = 2;
+			pso._frame = camera._frame;
 
 			pso.run(cam_color, cam_depth, com_hand, trackingtype);
+			//pso.run(cam_rgb, cam_depth, com_hand, trackingtype);
 			
 		}
 #pragma endregion
@@ -555,24 +629,24 @@ void main(int argc, char** argv)
 
 #pragma region save ground truth
 		if (saveimage_enable == true)
-			camera.recordFrames(recordFrameOpt);
+			camera.recordFrames(recordFrameOpt,num_between);
 
-		if (saveimage_training_enable == true){
-			camera.recordFramesTraining(postureName, cam_depth);
-			
-			if (cv::waitKey(1) == 'a')
-				upframe_enable = true;
+		
+		//if (saveimage_training_enable == true){
+		//	camera.recordFramesTraining(postureName, cam_depth);
+		//	
+		//	if (cv::waitKey(1) == 'a')
+		//		upframe_enable = true;
 
-			if (camera._frame == 300){
-				camera._frame = 0;
-				upframe_enable = false;
-				postureName += 1;
-			}
-
-		}
+		//	if (camera._frame == 300){
+		//		camera._frame = 0;
+		//		upframe_enable = false;
+		//		postureName += 1;
+		//	}
+		//}
 
 		if (savegroundtruth_enable == true){
-			handgenerator.saveJoints();
+			handgenerator.saveJoints(num_between);
 			handgenerator.saveParameters26D(com_hand);
 		}
 			
@@ -620,8 +694,18 @@ void main(int argc, char** argv)
 
 #pragma endregion
 
-	
+		
+		char key = cv::waitKey(1);
+
 #pragma region gui test	
+		if (key == 'c'){
+			float* solp = &pso.gbest.at<float>(0, 0);
+			handgenerator.run_setTbarFromResult(solp);
+			handgenerator.save_trackbar();
+		}
+
+		
+
 		/*
 		{
 			//set track bar from pso result
@@ -699,22 +783,24 @@ void main(int argc, char** argv)
 				exit(1);
 		}
 		*/
-		if (cv::waitKey(1) == 'q')
+	
+		if (key == 'q')
 			exit(1);
 		
 		
-		
-
-
 		if (upframe_enable == true)
 			camera._frame++;
 
+		if (key == 'r')
+			upframe_enable = true;
+
+		if (key == 'g')
+			camera._frame = 0;
+
+		if (key == 'a')
+			camera._frame++;
+		
 		camera.releaseFrames();
-		cv::waitKey(1);
-		
-		
-		
-		
 		
 #pragma endregion
 		

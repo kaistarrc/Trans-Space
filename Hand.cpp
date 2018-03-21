@@ -1057,15 +1057,15 @@ void Hand::SetJoint(int jn, int pc, float x, float y, float z)
 
 	/*
 	if (jn == 0)
-		sy = 1.1;
+		sy = 1.2;
 	if (jn == 3)
-		sy = 1.1;
+		sy = 1.2;
 	if (jn == 6)
-		sy = 1.1;
+		sy = 1.2;
 	if (jn == 9)
-		sy = 1.1;
+		sy = 1.2;
 	if (jn == 12)
-		sy = 1.1;
+		sy = 1.2;
 	*/
 
 

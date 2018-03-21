@@ -9,7 +9,8 @@ const float bar_range = 255.0;// 100;
 
 using namespace std;
 
-static float fingerAxis[5] = { -25, 3, -2, 2, -6 };
+//static float fingerAxis[5] = { -25, 3, -2, 2, -6 };
+static float fingerAxis[5] = { 0,0,0,0,0 };
 static int postureNum=26; //26*2...
 
 class HandGenerator{
@@ -119,7 +120,7 @@ class HandGenerator{
 				cv::moveWindow("wrist", 640 * 3, 550);
 				cv::moveWindow("finger", 640 * 3+400, 550);
 
-				cv::destroyAllWindows();
+				//cv::destroyAllWindows();
 			
 				for (int j = 0; j < 6; j++){
 					float bu = boundary_max[1][j];
@@ -462,7 +463,7 @@ class HandGenerator{
 
 		//finger test for epfl
 		int run_sequence_between_FingerTest(){
-			static int classid = 0;
+			static int classid = -1;
 			//float num_between = 100.0;
 
 			//pose(a)
@@ -485,12 +486,20 @@ class HandGenerator{
 				for (int j = 0; j < 3; j++)
 					fval_b[i][j] = _trackbar.fval[i][j];
 
+
+
+				for (int i = 3; i < 15; i++)
+				for (int j = 1; j < 3; j++)
+					fval_b[i][j] = -70;
+
+				printf("zz:%f\n", _trackbar.wval[2]);
 					//test(1): move a finger individually to check an axis.
 				    //0(ok) , 3(ok), 6(ok), 9(ok), 12(ok)
+					//fval_b[0][2] = -90;
 					//fval_b[3][0] = -90;  //0,3,6,9,12
 					//fval_b[6][0] = -90;  //0,3,6,9,12
 					//fval_b[9][0] = -70;  //0,3,6,9,12
-					fval_b[12][0] = -90;  //0,3,6,9,12
+					//fval_b[12][0] = -90;  //0,3,6,9,12
 
 
 					//test(2): move some fingers simultaneously.
@@ -516,14 +525,14 @@ class HandGenerator{
 				_trackbar.fval[3 * i + 2][0] = fval_a[3 * i + 2][0] + (poseidx / _num_between)*(fval_b[3 * i + 2][0] - fval_a[3 * i + 2][0]);
 			}
 
-			for (int j = 0; j < 6; j++)
-				printf("w[%d]=%.2f\n", j, wval_b[j] - _trackbar.wval[j]);
+			//for (int j = 0; j < 6; j++)
+			//	printf("w[%d]=%.2f\n", j, wval_b[j] - _trackbar.wval[j]);
 			for (int i = 0; i < 5; i++){
 				float d0 = fval_b[3 * i + 0][0] - _trackbar.fval[3 * i + 0][0];
 				float d1 = fval_b[3 * i + 0][2] - _trackbar.fval[3 * i + 0][2];
 				float d2 = fval_b[3 * i + 1][0] - _trackbar.fval[3 * i + 1][0];
 				float d3 = fval_b[3 * i + 2][0] - _trackbar.fval[3 * i + 2][0];
-				printf("f[%d]=%.2f %.2f %.2f %.2f\n", i, d0, d1, d2, d3);
+				//printf("f[%d]=%.2f %.2f %.2f %.2f\n", i, d0, d1, d2, d3);
 			}
 
 			poseidx++;
@@ -1320,7 +1329,7 @@ public:
 		//cv::imshow("groundtruth", cam_color);
 
 		//color code visualization
-		/*
+		
 		cv::Mat mask = cam_depth >0;
 		double min;
 		double max;
@@ -1329,11 +1338,20 @@ public:
 		cv::Mat adjMap;
 		cam_depth.convertTo(adjMap, CV_8UC1, 255 / (max - min), -min);
 
+
+		//for (int i = 0; i<adjMap.size().width;i++)
+		//for (int j = 0; j < adjMap.size().height; j++){
+		//	if (adjMap.at<uchar>(j, i)<180)
+		//		adjMap.at<uchar>(j, i) = 0;
+		//}
+
 		cv::Mat falseColorsMap;
 		applyColorMap(adjMap, falseColorsMap, 2);// cv::COLORMAP_AUTUMN);
+		//applyColorMap(adjMap, falseColorsMap, 5);// cv::COLORMAP_AUTUMN);
+
 		cv::imshow("groundtruth1", falseColorsMap);
 		cv::moveWindow("groundtruth1", 640 * 3, 0);
-		*/
+		
 
 		//distance between joints	
 		/*
@@ -1374,7 +1392,7 @@ public:
 		*/
 	}
 
-	void saveJoints(){
+	void saveJoints(int n){
 		
 		//get all joints
 		std::vector<float> jpos;
@@ -1385,7 +1403,10 @@ public:
 		jidx.push_back(4); jidx.push_back(9); jidx.push_back(14); jidx.push_back(19); jidx.push_back(24);//
 
 
-		string fname = "save/sequence/groundtruth15D.csv";
+		//string fname = "save/sequence/groundtruth15D.csv";
+		string fname = "save/sequence/groundtruth15D_";
+		fname = fname + to_string(n)+".csv";
+
 		static ofstream file1(fname);
 
 		//save finger tip

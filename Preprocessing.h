@@ -268,9 +268,10 @@ public:
 			vimg.at<uchar>(j, i) = yuv.at<uchar>(j, 3 * i + 2);
 
 			maskwrist.at<uchar>(j, i) = 0;
-			if (vimg.at<uchar>(j, i)>150)
+			if (vimg.at<uchar>(j, i)>130)
 				maskwrist.at<uchar>(j, i) = 255;
 		}
+		//cv::imshow("mask",maskwrist);
 		
 		//calculate depth of wrist band.
 		float wristcom[3] = { 0, 0, 0 };
