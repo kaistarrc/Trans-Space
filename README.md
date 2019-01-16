@@ -21,7 +21,7 @@ Function:
 Desired computing power:  
 
 ## Hand module
-Input:  VGA RGB image / VGA depth image
+Input:  VGA RGB, depth image 
 Output:  26 hand pose parameters
 Function:  
 Desired computing power:  
